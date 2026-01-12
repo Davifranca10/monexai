@@ -1,0 +1,414 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  Bot,
+  User,
+  AlertCircle,
+  Crown,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
+export function ChatWidget() {
+  const { data: session, status } = useSession() || {};
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [dailyCount, setDailyCount] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [clearingChat, setClearingChat] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Load chat history and check subscription when widget opens
+  useEffect(() => {
+    if (isOpen && session?.user?.id) {
+      loadChatData();
+    }
+  }, [isOpen, session?.user?.id]);
+
+  const loadChatData = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch('/api/chat/history');
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessages(data.messages || []);
+        setIsPro(data.isPro || false);
+        setDailyCount(data.dailyCount || 0);
+        setLimitReached(data.limitReached || false);
+      } else {
+        console.error('Erro ao carregar histórico:', data.error);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados do chat:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Load user avatar
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/user/avatar')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.avatarUrl) {
+            setUserAvatarUrl(data.avatarUrl);
+          }
+        })
+        .catch((error) => {
+          console.error('Erro ao carregar avatar:', error);
+        });
+    }
+  }, [session?.user?.id]);
+
+  const handleClearChat = async () => {
+    if (!confirm('Tem certeza que deseja limpar todo o histórico do chat?')) {
+      return;
+    }
+
+    setClearingChat(true);
+    try {
+      const res = await fetch('/api/chat/history', {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setMessages([]);
+        toast.success('Histórico do chat limpo com sucesso!');
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Erro ao limpar histórico');
+      }
+    } catch (error) {
+      console.error('Erro ao limpar chat:', error);
+      toast.error('Erro ao limpar histórico do chat');
+    } finally {
+      setClearingChat(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading || limitReached) return;
+
+    const userMessage = input.trim();
+    setInput('');
+
+    // Add user message to UI immediately
+    const tempUserMsg: Message = {
+      id: `temp-${Date.now()}`,
+      role: 'user',
+      content: userMessage,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    setIsLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erro ao enviar mensagem');
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Stream não disponível');
+      }
+
+      let assistantContent = '';
+      const assistantMsg: Message = {
+        id: `temp-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                assistantContent += parsed.content;
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMsg.id
+                      ? { ...msg, content: assistantContent }
+                      : msg
+                  )
+                );
+              }
+              if (parsed.dailyCount !== undefined) {
+                setDailyCount(parsed.dailyCount);
+              }
+              if (parsed.limitReached) {
+                setLimitReached(true);
+              }
+            } catch (e) {
+              // Ignore parsing errors for incomplete chunks
+            }
+          }
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao enviar mensagem');
+      // Remove temporary user message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempUserMsg.id));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  // Don't show widget if not authenticated
+  if (status === 'loading') return null;
+  if (!session?.user) return null;
+
+  return (
+    <>
+      {/* Floating Button */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110"
+          aria-label="Abrir Chat IA"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Pop-up Chat Widget */}
+      {isOpen && (
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-green-700 to-green-600 text-white px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              <div>
+                <h3 className="font-semibold text-sm">Chat com IA</h3>
+                <p className="text-xs text-green-100">
+                  Assistente Financeiro Pessoal
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {isPro && messages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearChat}
+                  disabled={clearingChat}
+                  className="hover:bg-green-800 text-white h-8 w-8 p-0"
+                  title="Limpar conversa"
+                >
+                  {clearingChat ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsOpen(false)}
+                className="hover:bg-green-800 text-white h-8 w-8 p-0"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Pro Check */}
+          {!isPro ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <Crown className="h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="font-semibold text-lg mb-2 text-gray-900">
+                Recurso Exclusivo Pro
+              </h3>
+              <p className="text-gray-600 mb-4">
+                O Chat com IA está disponível apenas para usuários do plano Pro.
+              </p>
+              <Link href="/app/assinatura">
+                <Button className="bg-green-700 hover:bg-green-800">
+                  <Crown className="h-4 w-4 mr-2" />
+                  Ver Plano Pro
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Messages Area */}
+              <ScrollArea className="flex-1 p-4">
+                {loadingHistory ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-green-700" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <Bot className="h-12 w-12 mb-3 text-gray-300" />
+                    <p className="text-sm">
+                      Olá! Sou seu assistente financeiro.
+                      <br />
+                      Como posso ajudar você hoje?
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex gap-2 ${
+                          msg.role === 'user' ? 'justify-end' : 'justify-start'
+                        }`}
+                      >
+                        {msg.role === 'assistant' && (
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                            <Bot className="h-5 w-5 text-green-700" />
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[75%] px-3 py-2 rounded-lg ${
+                            msg.role === 'user'
+                              ? 'bg-green-700 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">
+                            {msg.content}
+                          </p>
+                        </div>
+                        {msg.role === 'user' && (
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarImage src={userAvatarUrl || undefined} alt="Avatar do usuário" />
+                            <AvatarFallback className="bg-green-700 text-white">
+                              <User className="h-5 w-5" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Limit Warning */}
+              {limitReached && (
+                <div className="px-4 py-2 bg-red-50 border-t border-red-200">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-800">
+                      Suas perguntas foram temporariamente bloqueadas por uso excessivo. Tente novamente mais tarde.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Input Area */}
+              <div className="border-t border-gray-200 p-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Digite sua mensagem..."
+                    disabled={isLoading || limitReached}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSend}
+                    disabled={isLoading || !input.trim() || limitReached}
+                    className="bg-green-700 hover:bg-green-800"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <style jsx global>{`
+          @media (max-width: 768px) {
+            .fixed.bottom-6.right-6.z-50.w-\[380px\] {
+              width: calc(100vw - 2rem);
+              height: calc(100vh - 2rem);
+              max-height: none;
+              bottom: 1rem;
+              right: 1rem;
+              left: 1rem;
+            }
+          }
+        `}</style>
+      )}
+    </>
+  );
+}
