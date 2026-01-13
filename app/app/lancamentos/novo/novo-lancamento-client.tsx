@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatCurrency, calculateInterest } from '@/lib/utils';
-import { TransactionType, UserMode } from '@prisma/client';
+type TransactionType = 'INCOME' | 'EXPENSE';
+type UserMode = 'PERSONAL' | 'BUSINESS';
 import { toast } from 'sonner';
 import { Loader2, TrendingUp, TrendingDown, Percent } from 'lucide-react';
 
