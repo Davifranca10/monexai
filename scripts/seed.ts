@@ -1,4 +1,7 @@
-import { PrismaClient, UserMode, TransactionType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+
+type UserMode = 'PERSONAL' | 'BUSINESS';
+type TransactionType = 'INCOME' | 'EXPENSE';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
