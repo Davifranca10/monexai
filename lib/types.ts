@@ -1,6 +1,7 @@
-import { UserMode, TransactionType, RecurrenceType, SubscriptionStatus } from '@prisma/client';
-
-export type { UserMode, TransactionType, RecurrenceType, SubscriptionStatus };
+export type UserMode = 'PERSONAL' | 'BUSINESS';
+export type TransactionType = 'INCOME' | 'EXPENSE';
+export type RecurrenceType = 'MONTHLY' | 'WEEKLY' | 'INSTALLMENT';
+export type SubscriptionStatus = 'FREEMIUM' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE';
 
 export interface UserSession {
   id: string;
