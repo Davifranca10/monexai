@@ -31,22 +31,22 @@ const businessIncomeCategories = [
 // Templates REDUZIDOS para Freemium: 5 templates (3 despesa, 2 receita)
 const personalTemplates = [
   // 3 templates de despesa
-  { name: 'Supermercado', type: TransactionType.EXPENSE, category: 'Alimentação', amountCents: 30000 },
-  { name: 'Conta de Luz', type: TransactionType.EXPENSE, category: 'Contas', amountCents: 15000 },
-  { name: 'Transporte/Combustível', type: TransactionType.EXPENSE, category: 'Transporte', amountCents: 20000 },
+  { name: 'Supermercado', type: 'EXPENSE' as TransactionType, category: 'Alimentação', amountCents: 30000 },
+  { name: 'Conta de Luz', type: 'EXPENSE' as TransactionType, category: 'Contas', amountCents: 15000 },
+  { name: 'Transporte/Combustível', type: 'EXPENSE' as TransactionType, category: 'Transporte', amountCents: 20000 },
   // 2 templates de receita
-  { name: 'Salário Mensal', type: TransactionType.INCOME, category: 'Salário', amountCents: 350000 },
-  { name: 'Renda Extra', type: TransactionType.INCOME, category: 'Serviços', amountCents: 50000 },
+  { name: 'Salário Mensal', type: 'INCOME' as TransactionType, category: 'Salário', amountCents: 350000 },
+  { name: 'Renda Extra', type: 'INCOME' as TransactionType, category: 'Serviços', amountCents: 50000 },
 ];
 
 const businessTemplates = [
   // 3 templates de despesa
-  { name: 'Fornecedores', type: TransactionType.EXPENSE, category: 'Fornecedores', amountCents: 100000 },
-  { name: 'Marketing Digital', type: TransactionType.EXPENSE, category: 'Marketing', amountCents: 50000 },
-  { name: 'Impostos Mensais', type: TransactionType.EXPENSE, category: 'Impostos/Taxas', amountCents: 30000 },
+  { name: 'Fornecedores', type: 'EXPENSE' as TransactionType, category: 'Fornecedores', amountCents: 100000 },
+  { name: 'Marketing Digital', type: 'EXPENSE' as TransactionType, category: 'Marketing', amountCents: 50000 },
+  { name: 'Impostos Mensais', type: 'EXPENSE' as TransactionType, category: 'Impostos/Taxas', amountCents: 30000 },
   // 2 templates de receita
-  { name: 'Venda de Produto', type: TransactionType.INCOME, category: 'Vendas', amountCents: 15000 },
-  { name: 'Serviço Prestado', type: TransactionType.INCOME, category: 'Serviços', amountCents: 50000 },
+  { name: 'Venda de Produto', type: 'INCOME' as TransactionType, category: 'Vendas', amountCents: 15000 },
+  { name: 'Serviço Prestado', type: 'INCOME' as TransactionType, category: 'Serviços', amountCents: 50000 },
 ];
 
 async function main() {
@@ -57,12 +57,12 @@ async function main() {
   for (const name of personalExpenseCategories) {
     const cat = await prisma.category.upsert({
       where: { id: `personal-expense-${name.toLowerCase().replace(/[^a-z]/g, '')}` },
-      update: { type: TransactionType.EXPENSE },
+      update: { type: 'EXPENSE' },
       create: {
         id: `personal-expense-${name.toLowerCase().replace(/[^a-z]/g, '')}`,
         name,
-        mode: UserMode.PERSONAL,
-        type: TransactionType.EXPENSE,
+        mode: 'PERSONAL',
+        type: 'EXPENSE',
         isSystem: true,
       },
     });
@@ -73,12 +73,12 @@ async function main() {
   for (const name of personalIncomeCategories) {
     const cat = await prisma.category.upsert({
       where: { id: `personal-income-${name.toLowerCase().replace(/[^a-z]/g, '')}` },
-      update: { type: TransactionType.INCOME },
+      update: { type: 'INCOME' },
       create: {
         id: `personal-income-${name.toLowerCase().replace(/[^a-z]/g, '')}`,
         name,
-        mode: UserMode.PERSONAL,
-        type: TransactionType.INCOME,
+        mode: 'PERSONAL',
+        type: 'INCOME',
         isSystem: true,
       },
     });
@@ -90,12 +90,12 @@ async function main() {
   for (const name of businessExpenseCategories) {
     const cat = await prisma.category.upsert({
       where: { id: `business-expense-${name.toLowerCase().replace(/[^a-z]/g, '')}` },
-      update: { type: TransactionType.EXPENSE },
+      update: { type: 'EXPENSE' },
       create: {
         id: `business-expense-${name.toLowerCase().replace(/[^a-z]/g, '')}`,
         name,
-        mode: UserMode.BUSINESS,
-        type: TransactionType.EXPENSE,
+        mode: 'BUSINESS',
+        type: 'EXPENSE',
         isSystem: true,
       },
     });
@@ -106,12 +106,12 @@ async function main() {
   for (const name of businessIncomeCategories) {
     const cat = await prisma.category.upsert({
       where: { id: `business-income-${name.toLowerCase().replace(/[^a-z]/g, '')}` },
-      update: { type: TransactionType.INCOME },
+      update: { type: 'INCOME' },
       create: {
         id: `business-income-${name.toLowerCase().replace(/[^a-z]/g, '')}`,
         name,
-        mode: UserMode.BUSINESS,
-        type: TransactionType.INCOME,
+        mode: 'BUSINESS',
+        type: 'INCOME',
         isSystem: true,
       },
     });
@@ -130,7 +130,7 @@ async function main() {
         name: tmpl.name,
         type: tmpl.type,
         categoryId,
-        mode: UserMode.PERSONAL,
+        mode: 'PERSONAL',
         isSystem: true,
         amountCents: tmpl.amountCents,
       },
@@ -146,7 +146,7 @@ async function main() {
         name: tmpl.name,
         type: tmpl.type,
         categoryId,
-        mode: UserMode.BUSINESS,
+        mode: 'BUSINESS',
         isSystem: true,
         amountCents: tmpl.amountCents,
       },
@@ -171,7 +171,7 @@ async function main() {
     update: {},
     create: {
       userId: user.id,
-      mode: UserMode.PERSONAL,
+      mode: 'PERSONAL',
     },
   });
 
