@@ -21,7 +21,8 @@ import {
   Info,
   Calendar,
 } from 'lucide-react';
-import { TransactionType, UserMode } from '@prisma/client';
+type TransactionType = 'INCOME' | 'EXPENSE';
+type UserMode = 'PERSONAL' | 'BUSINESS';
 import { toast } from 'sonner';
 import {
   Select,
