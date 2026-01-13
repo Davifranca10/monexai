@@ -27,7 +27,8 @@ import {
   Lock,
   Info,
 } from 'lucide-react';
-import { UserMode, TransactionType } from '@prisma/client';
+type UserMode = 'PERSONAL' | 'BUSINESS';
+type TransactionType = 'INCOME' | 'EXPENSE';
 import dynamic from 'next/dynamic';
 
 const DashboardChart = dynamic(() => import('./dashboard-chart'), { ssr: false });
