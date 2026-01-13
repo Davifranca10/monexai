@@ -28,9 +28,10 @@ import {
   Mail,
   Camera,
 } from 'lucide-react';
-import { UserMode } from '@prisma/client';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
+
+type UserMode = 'PERSONAL' | 'BUSINESS';  // ← ADICIONAR AQUI
 
 interface ConfiguracoesClientProps {
   user: {
