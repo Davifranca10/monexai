@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,10 +15,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = params ?? {};
+    const { id } = await params;  
+
     const body = await request.json();
 
-    // Verify ownership
+    
     const rule = await prisma.recurringRule.findFirst({
       where: { id, userId: session.user.id },
     });
@@ -41,7 +42,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ← MUDANÇA AQUI
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -49,7 +50,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = params ?? {};
+    const { id } = await params;  // ← MUDANÇA AQUI
 
     // Verify ownership
     const rule = await prisma.recurringRule.findFirst({

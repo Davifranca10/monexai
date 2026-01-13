@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ← MUDANÇA 1
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,7 +15,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = params ?? {};
+    const { id } = await params;  // ← MUDANÇA 2
 
     // Verify ownership
     const transaction = await prisma.transaction.findFirst({
