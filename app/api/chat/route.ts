@@ -14,7 +14,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-// Helper function to load user financial data
+// Helper function to load user financial context
 async function loadUserFinancialContext(userId: string) {
   // Get user profile
   const profile = await prisma.userProfile.findUnique({
@@ -57,27 +57,27 @@ async function loadUserFinancialContext(userId: string) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const currentMonthTransactions = allAllowedTransactions.filter((t) => {
+  const currentMonthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
     const tDate = new Date(t.date);
     return tDate >= startOfMonth && tDate <= endOfMonth;
   });
 
   // Calculate current month summary
   const currentMonthIncome = currentMonthTransactions
-    .filter((t) => t.type === 'INCOME')
-    .reduce((sum, t) => sum + t.amountCents, 0);
+    .filter((t: any) => t.type === 'INCOME')
+    .reduce((sum: any, t: any) => sum + t.amountCents, 0);
 
   const currentMonthExpenses = currentMonthTransactions
-    .filter((t) => t.type === 'EXPENSE')
-    .reduce((sum, t) => sum + t.amountCents, 0);
+    .filter((t: any) => t.type === 'EXPENSE')
+    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
 
   const currentMonthBalance = currentMonthIncome - currentMonthExpenses;
 
   // Calculate spending by category (current month)
   const expensesByCategory: Record<string, number> = {};
   currentMonthTransactions
-    .filter((t) => t.type === 'EXPENSE')
-    .forEach((t) => {
+    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+    .forEach((t: any) => {  // ← MUDANÇA
       const categoryName = t.category.name;
       expensesByCategory[categoryName] =
         (expensesByCategory[categoryName] || 0) + t.amountCents;
@@ -86,8 +86,8 @@ async function loadUserFinancialContext(userId: string) {
   // Calculate income by category (current month)
   const incomeByCategory: Record<string, number> = {};
   currentMonthTransactions
-    .filter((t) => t.type === 'INCOME')
-    .forEach((t) => {
+    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
+    .forEach((t: any) => {  // ← MUDANÇA
       const categoryName = t.category.name;
       incomeByCategory[categoryName] =
         (incomeByCategory[categoryName] || 0) + t.amountCents;
@@ -96,8 +96,8 @@ async function loadUserFinancialContext(userId: string) {
   // Get top 5 expense categories (from all allowed period)
   const allExpensesByCategory: Record<string, number> = {};
   allAllowedTransactions
-    .filter((t) => t.type === 'EXPENSE')
-    .forEach((t) => {
+    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+    .forEach((t: any) => {  // ← MUDANÇA
       const categoryName = t.category.name;
       allExpensesByCategory[categoryName] =
         (allExpensesByCategory[categoryName] || 0) + t.amountCents;
@@ -124,7 +124,7 @@ async function loadUserFinancialContext(userId: string) {
   });
 
   // Format recurring rules
-  const formattedRecurrences = recurringRules.map((r) => ({
+  const formattedRecurrences = recurringRules.map((r: any) => ({  // ← MUDANÇA
     description: r.description,
     amount: (r.amountCents / 100).toFixed(2),
     type: r.transactionType,
@@ -133,7 +133,7 @@ async function loadUserFinancialContext(userId: string) {
   }));
 
   // Get recent transactions (last 10 from allowed period)
-  const recentTransactions = allAllowedTransactions.slice(0, 10).map((t) => ({
+  const recentTransactions = allAllowedTransactions.slice(0, 10).map((t: any) => ({  // ← MUDANÇA
     date: t.date.toLocaleDateString('pt-BR'),
     description: t.description,
     amount: (t.amountCents / 100).toFixed(2),
@@ -150,18 +150,18 @@ async function loadUserFinancialContext(userId: string) {
 
   // Only calculate if last month is within allowed period
   if (lastMonth >= historyStartDate) {
-    const lastMonthTransactions = allAllowedTransactions.filter((t) => {
+    const lastMonthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
       const tDate = new Date(t.date);
       return tDate >= lastMonth && tDate <= lastMonthEnd;
     });
 
     lastMonthIncome = lastMonthTransactions
-      .filter((t) => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'INCOME')
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
 
     lastMonthExpenses = lastMonthTransactions
-      .filter((t) => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'EXPENSE')
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
   }
 
   // Calculate monthly breakdown for historical analysis with detailed category data
@@ -182,24 +182,24 @@ async function loadUserFinancialContext(userId: string) {
     const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
     const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
 
-    const monthTransactions = allAllowedTransactions.filter((t) => {
+    const monthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
       const tDate = new Date(t.date);
       return tDate >= monthStart && tDate <= monthEnd;
     });
 
     const monthIncome = monthTransactions
-      .filter((t) => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'INCOME')
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
 
     const monthExpenses = monthTransactions
-      .filter((t) => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'EXPENSE')
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
 
     // Calculate expenses by category for this month
     const monthExpensesByCategory: Record<string, { amount: number; count: number }> = {};
     monthTransactions
-      .filter((t) => t.type === 'EXPENSE')
-      .forEach((t) => {
+      .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+      .forEach((t: any) => {  // ← MUDANÇA
         const categoryName = t.category.name;
         if (!monthExpensesByCategory[categoryName]) {
           monthExpensesByCategory[categoryName] = { amount: 0, count: 0 };
@@ -211,8 +211,8 @@ async function loadUserFinancialContext(userId: string) {
     // Calculate income by category for this month
     const monthIncomeByCategory: Record<string, { amount: number; count: number }> = {};
     monthTransactions
-      .filter((t) => t.type === 'INCOME')
-      .forEach((t) => {
+      .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
+      .forEach((t: any) => {  // ← MUDANÇA
         const categoryName = t.category.name;
         if (!monthIncomeByCategory[categoryName]) {
           monthIncomeByCategory[categoryName] = { amount: 0, count: 0 };
@@ -493,10 +493,10 @@ ${userContext.periodDescription}
 Total de ${userContext.monthsAllowed} ${userContext.monthsAllowed === 1 ? 'mês' : 'meses'} de histórico
 ${userContext.totalTransactions} transações no período
 
-**IMPORTANTE:** ${userContext.isPro 
-  ? 'Como usuário Pro, você tem acesso aos últimos 6 meses de dados detalhados.'
-  : 'Como usuário Freemium, você tem acesso apenas ao mês atual e ao mês anterior. Para análises de períodos mais longos, sugira o upgrade para o plano Pro.'
-}
+**IMPORTANTE:** ${userContext.isPro
+        ? 'Como usuário Pro, você tem acesso aos últimos 6 meses de dados detalhados.'
+        : 'Como usuário Freemium, você tem acesso apenas ao mês atual e ao mês anterior. Para análises de períodos mais longos, sugira o upgrade para o plano Pro.'
+      }
 
 **MÊS ATUAL (${userContext.currentMonth.name}):**
 - Receitas: R$ ${userContext.currentMonth.income}
@@ -505,11 +505,11 @@ ${userContext.totalTransactions} transações no período
 - Total de lançamentos: ${userContext.currentMonth.transactionCount}
 
 **MÊS ANTERIOR:**
-${userContext.lastMonth.available 
-  ? `- Receitas: R$ ${userContext.lastMonth.income}
+${userContext.lastMonth.available
+        ? `- Receitas: R$ ${userContext.lastMonth.income}
 - Despesas: R$ ${userContext.lastMonth.expenses}`
-  : '- Dados do mês anterior não disponíveis neste período'
-}
+        : '- Dados do mês anterior não disponíveis neste período'
+      }
 
 **EVOLUÇÃO MENSAL DETALHADA:**
 ${userContext.monthlyBreakdown.map((m) => `
@@ -521,41 +521,41 @@ ${userContext.monthlyBreakdown.map((m) => `
   ${m.topExpenseCategory ? `🔝 Maior gasto: ${m.topExpenseCategory.category} (R$ ${m.topExpenseCategory.amount})` : ''}
   
   📁 Despesas por categoria:
-  ${m.expensesByCategory.length > 0 
-    ? m.expensesByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
-    : '    Nenhuma despesa registrada'
-  }
+  ${m.expensesByCategory.length > 0
+          ? m.expensesByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
+          : '    Nenhuma despesa registrada'
+        }
   
   💵 Receitas por categoria:
   ${m.incomeByCategory.length > 0
-    ? m.incomeByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
-    : '    Nenhuma receita registrada'
-  }
+          ? m.incomeByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
+          : '    Nenhuma receita registrada'
+        }
 `).join('\n---\n')}
 
 **TOP 5 CATEGORIAS DE DESPESAS (período completo):**
-${userContext.topExpenseCategories.length > 0 
-  ? userContext.topExpenseCategories.map((cat, i) => `${i + 1}. ${cat.category}: R$ ${cat.amount}`).join('\n')
-  : 'Nenhuma despesa registrada no período.'
-}
+${userContext.topExpenseCategories.length > 0
+        ? userContext.topExpenseCategories.map((cat, i) => `${i + 1}. ${cat.category}: R$ ${cat.amount}`).join('\n')
+        : 'Nenhuma despesa registrada no período.'
+      }
 
 **RECEITAS POR CATEGORIA (mês atual):**
-${userContext.incomeByCategory.length > 0 
-  ? userContext.incomeByCategory.map((cat) => `- ${cat.category}: R$ ${cat.amount}`).join('\n') 
-  : 'Nenhuma receita registrada no mês atual.'
-}
+${userContext.incomeByCategory.length > 0
+        ? userContext.incomeByCategory.map((cat) => `- ${cat.category}: R$ ${cat.amount}`).join('\n')
+        : 'Nenhuma receita registrada no mês atual.'
+      }
 
 **ÚLTIMAS TRANSAÇÕES:**
-${userContext.recentTransactions.length > 0 
-  ? userContext.recentTransactions.map((t) => `- ${t.date} | ${t.description} | R$ ${t.amount} | ${t.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${t.category}`).join('\n') 
-  : 'Nenhuma transação registrada no período.'
-}
+${userContext.recentTransactions.length > 0
+        ? userContext.recentTransactions.map((t: any) => `- ${t.date} | ${t.description} | R$ ${t.amount} | ${t.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${t.category}`).join('\n')
+        : 'Nenhuma transação registrada no período.'
+      }
 
 **RECORRÊNCIAS ATIVAS:**
-${userContext.recurringRules.length > 0 
-  ? userContext.recurringRules.map((r) => `- ${r.description} | R$ ${r.amount} | ${r.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${r.frequency} | ${r.category}`).join('\n') 
-  : 'Nenhuma recorrência ativa.'
-}
+${userContext.recurringRules.length > 0
+        ? userContext.recurringRules.map((r: any) => `- ${r.description} | R$ ${r.amount} | ${r.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${r.frequency} | ${r.category}`).join('\n')
+        : 'Nenhuma recorrência ativa.'
+      }
 
 **INSTRUÇÕES FINAIS:**
 1. Use APENAS os dados fornecidos acima para responder.
@@ -577,11 +577,11 @@ ${userContext.recurringRules.length > 0
           content: systemPrompt,
         },
         ...previousMessages.map(
-          (msg) =>
-            ({
-              role: msg.role as 'user' | 'assistant',
-              content: msg.content,
-            } as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+          (msg: any) =>  // ← MUDANÇA
+          ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+          } as OpenAI.Chat.Completions.ChatCompletionMessageParam)
         ),
         {
           role: 'user',
@@ -613,7 +613,7 @@ ${userContext.recurringRules.length > 0
 
       await prisma.chatMessage.deleteMany({
         where: {
-          id: { in: oldestMessages.map((msg) => msg.id) },
+          id: { in: oldestMessages.map((msg: any) => msg.id) },  // ← MUDANÇA
         },
       });
     }
