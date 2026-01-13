@@ -21,7 +21,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { UserMode } from '@prisma/client';
+type UserMode = 'PERSONAL' | 'BUSINESS';
 
 const navItems = [
   { href: '/app/dashboard', label: 'Dashboard', icon: LayoutDashboard },
