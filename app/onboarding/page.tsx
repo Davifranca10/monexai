@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -14,6 +14,13 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'PERSONAL' | 'BUSINESS' | null>(null);
+
+  // Se o usuário já tiver perfil na sessão, manda ele direto pro dashboard
+  useEffect(() => {
+    if (session?.user?.mode) {
+      router.replace('/app/dashboard');
+    }
+  }, [session, router]);
 
   const handleContinue = async () => {
     if (!selectedMode) {
@@ -30,17 +37,42 @@ export default function OnboardingPage() {
         body: JSON.stringify({ mode: selectedMode }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        toast.error(data?.error || 'Erro ao configurar perfil');
+      // Sucesso: perfil criado — atualiza sessão e vai pro dashboard
+      if (res.ok) {
+        try {
+          if (typeof update === 'function') {
+            await update({ mode: selectedMode });
+          }
+        } catch (err) {
+          console.warn('Falha ao atualizar sessão local:', err);
+        }
+
+        toast.success('Perfil configurado!');
+        router.replace('/app/dashboard');
         return;
       }
 
-      await update({ mode: selectedMode });
-      toast.success('Perfil configurado!');
-      router.replace('/app/dashboard');
+      // Caso: perfil já existe — mostrar erro e pedir para o usuário fazer login
+      if (data?.error === 'Perfil já configurado') {
+        toast.error('Perfil já configurado. Faça login para acessar sua conta.');
+        // redireciona para a página de login
+        router.replace('/login');
+        return;
+      }
+
+      // Caso: não autorizado (sessão expirada) — pedir login
+      if (res.status === 401) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        router.replace('/login');
+        return;
+      }
+
+      // Outros erros
+      toast.error(data?.error || 'Erro ao configurar perfil');
     } catch (error) {
+      console.error('Onboarding error (client):', error);
       toast.error('Erro ao configurar perfil');
     } finally {
       setLoading(false);
