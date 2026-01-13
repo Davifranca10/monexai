@@ -94,5 +94,5 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     newUser: '/onboarding',
   },
-  debug: true, // ← ISSO VAI MOSTRAR TUDO NO LOG
+  debug: false, 
 };

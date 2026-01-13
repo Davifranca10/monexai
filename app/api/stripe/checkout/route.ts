@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
     // Get or create Stripe customer
+    // Get or create Stripe customer
     let subscription = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
     });
@@ -41,10 +42,17 @@ export async function POST(request: NextRequest) {
 
       customerId = customer.id;
 
-      // Update subscription record with customer ID
-      await prisma.subscription.update({
+      // ✅ UPSERT em vez de UPDATE (cria se não existir)
+      await prisma.subscription.upsert({
         where: { userId: session.user.id },
-        data: { stripeCustomerId: customerId },
+        update: {
+          stripeCustomerId: customerId
+        },
+        create: {
+          userId: session.user.id,
+          stripeCustomerId: customerId,
+          status: 'FREEMIUM', // ou o status padrão do seu schema
+        },
       });
     }
 
