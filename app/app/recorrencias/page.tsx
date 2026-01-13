@@ -33,7 +33,7 @@ export default async function RecorrenciasPage() {
 
   return (
     <RecorrenciasClient
-      rules={rules.map((r) => ({
+      rules={rules.map((r: any) => ({
         id: r.id,
         description: r.description,
         amountCents: r.amountCents,
@@ -48,7 +48,7 @@ export default async function RecorrenciasPage() {
         isActive: r.isActive,
         startDate: r.startDate.toISOString(),
       }))}
-      categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+      categories={categories.map((c: any) => ({ id: c.id, name: c.name }))}
       isPro={isPro}
     />
   );

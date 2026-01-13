@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency, FREEMIUM_LIMITS } from '@/lib/utils';
 import { Plus, Repeat, Trash2, TrendingUp, TrendingDown, Crown, Loader2 } from 'lucide-react';
-import { RecurrenceType, TransactionType } from '@prisma/client';
+type RecurrenceType = 'MONTHLY' | 'WEEKLY' | 'INSTALLMENT';
+type TransactionType = 'INCOME' | 'EXPENSE';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -351,11 +352,10 @@ export function RecorrenciasClient({ rules: initialRules, categories, isPro }: R
               <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4">
                 <div className="flex items-center gap-3 md:gap-4">
                   <div
-                    className={`p-2 rounded-full flex-shrink-0 ${
-                      rule?.transactionType === 'INCOME'
+                    className={`p-2 rounded-full flex-shrink-0 ${rule?.transactionType === 'INCOME'
                         ? 'bg-green-100 text-green-600'
                         : 'bg-red-100 text-red-600'
-                    }`}
+                      }`}
                   >
                     <Repeat className="h-4 w-4 md:h-5 md:w-5" />
                   </div>
@@ -370,9 +370,8 @@ export function RecorrenciasClient({ rules: initialRules, categories, isPro }: R
                 </div>
                 <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto justify-end">
                   <span
-                    className={`text-sm md:text-lg font-semibold ${
-                      rule?.transactionType === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                    }`}
+                    className={`text-sm md:text-lg font-semibold ${rule?.transactionType === 'INCOME' ? 'text-green-600' : 'text-red-600'
+                      }`}
                   >
                     {formatCurrency(rule?.amountCents ?? 0)}
                   </span>

@@ -42,11 +42,11 @@ export default async function TemplatesPage() {
     where: { userId },
     select: { templateId: true },
   });
-  const hiddenTemplateIds = hiddenTemplates.map((h) => h.templateId);
+  const hiddenTemplateIds = hiddenTemplates.map((h: any) => h.templateId);
 
   return (
     <TemplatesClient
-      templates={templates.map((t) => ({
+      templates={templates.map((t: any) => ({
         id: t.id,
         name: t.name,
         description: t.description,
@@ -56,7 +56,7 @@ export default async function TemplatesPage() {
         isSystem: t.isSystem,
         amountCents: t.amountCents,
       }))}
-      categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+      categories={categories.map((c: any) => ({ id: c.id, name: c.name }))}
       isPro={isPro}
       hiddenTemplateIds={hiddenTemplateIds}
     />

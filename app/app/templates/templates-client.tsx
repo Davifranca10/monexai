@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, FileText, Trash2, TrendingUp, TrendingDown, Crown, Loader2, EyeOff, Eye } from 'lucide-react';
-import { TransactionType } from '@prisma/client';
+type TransactionType = 'INCOME' | 'EXPENSE';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
