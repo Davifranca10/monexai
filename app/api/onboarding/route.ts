@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { UserMode } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
     await prisma.userProfile.create({
       data: {
         userId: session.user.id,
-        mode: mode as UserMode,
+        mode: mode as 'PERSONAL' | 'BUSINESS',  // ← MUDANÇA AQUI
       },
     });
 
