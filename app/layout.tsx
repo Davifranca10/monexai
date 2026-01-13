@@ -1,3 +1,15 @@
+// BEM NO TOPO DO ARQUIVO, antes de qualquer import
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('🚀 APPLICATION STARTING');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('Environment:', {
+  NODE_ENV: process.env.NODE_ENV,
+  hasDatabase: !!process.env.DATABASE_URL,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
+});
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -15,8 +27,19 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
+// Tratamento seguro da URL base
+const getMetadataBase = () => {
+  const url = process.env.NEXTAUTH_URL || 'https://monexai-production.up.railway.app';
+  try {
+    return new URL(url);
+  } catch (error) {
+    console.error('❌ Error parsing NEXTAUTH_URL:', error);
+    return new URL('https://monexai-production.up.railway.app');
+  }
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
+  metadataBase: getMetadataBase(),
   title: 'MonexAI - Gestão Financeira Inteligente',
   description: 'Controle suas finanças de forma simples e inteligente com IA',
   icons: {
