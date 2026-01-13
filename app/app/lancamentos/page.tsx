@@ -46,7 +46,7 @@ export default async function LancamentosPage() {
 
   return (
     <LancamentosClient
-      transactions={transactions.map((t) => ({
+      transactions={transactions.map((t: any) => ({
         id: t.id,
         description: t.description,
         amountCents: t.amountCents,
@@ -58,7 +58,7 @@ export default async function LancamentosPage() {
         interestPercent: t.interestPercent || 0,
         installments: t.installments || 1,
       }))}
-      categories={categories.map((c) => ({ id: c.id, name: c.name, type: c.type }))}
+      categories={categories.map((c: any) => ({ id: c.id, name: c.name, type: c.type }))}
       isPro={isPro}
       mode={profile?.mode || 'PERSONAL'}
     />

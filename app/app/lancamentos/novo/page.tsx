@@ -56,8 +56,8 @@ export default async function NovoLancamentoPage() {
 
   return (
     <NovoLancamentoClient
-      categories={categories.map((c) => ({ id: c.id, name: c.name, type: c.type }))}
-      templates={templates.map((t) => ({
+      categories={categories.map((c: any) => ({ id: c.id, name: c.name, type: c.type }))}
+      templates={templates.map((t: any) => ({
         id: t.id,
         name: t.name,
         type: t.type,
