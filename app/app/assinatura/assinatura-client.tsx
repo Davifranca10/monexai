@@ -14,8 +14,9 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SubscriptionStatus } from '@prisma/client';
 import { formatDate } from '@/lib/utils';
+
+type SubscriptionStatus = 'FREEMIUM' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE';  // ← ADICIONAR AQUI
 
 interface AssinaturaClientProps {
   subscription: {
