@@ -1,11 +1,12 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // ❌ REMOVIDO O ADAPTER (conflita com CredentialsProvider + JWT)
+  // adapter: PrismaAdapter(prisma),
+  
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -14,30 +15,52 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('➡️ AUTHORIZE CHAMADO')
+
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          console.log('❌ Credenciais vazias')
+          return null
         }
+
+        console.log('📧 Email recebido:', credentials.email)
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: { profile: true, subscription: true },
-        });
+        })
 
         if (!user) {
-          return null;
+          console.log('❌ Usuário NÃO encontrado no banco')
+          return null
         }
 
-        const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+        console.log('✅ Usuário encontrado:', {
+          id: user.id,
+          email: user.email,
+          passwordHashExiste: !!user.passwordHash,
+        })
+
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        )
+
+        console.log('🔐 Resultado bcrypt.compare:', isValid)
+
         if (!isValid) {
-          return null;
+          console.log('❌ Senha incorreta')
+          return null
         }
+
+        console.log('✅ LOGIN AUTORIZADO')
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          mode: user.profile?.mode || null,
+          mode: user.profile?.mode ?? null,
           isPro: user.subscription?.status === 'ACTIVE',
-        };
+        }
       },
     }),
   ],
