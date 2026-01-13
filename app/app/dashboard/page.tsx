@@ -33,20 +33,20 @@ export default async function DashboardPage() {
 
   // Calculate totals
   const income = transactions
-    .filter((t) => t.type === 'INCOME')
-    .reduce((sum, t) => sum + t.amountCents, 0);
+    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
+    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
 
   const expenses = transactions
-    .filter((t) => t.type === 'EXPENSE')
-    .reduce((sum, t) => sum + t.amountCents, 0);
+    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
 
   const balance = income - expenses;
 
   // Get spending by category (EXPENSES)
   const categoryTotals: Record<string, { name: string; total: number }> = {};
   transactions
-    .filter((t) => t.type === 'EXPENSE')
-    .forEach((t) => {
+    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+    .forEach((t: any) => {  // ← MUDANÇA
       const catName = t.category?.name || 'Outros';
       if (!categoryTotals[catName]) {
         categoryTotals[catName] = { name: catName, total: 0 };
@@ -61,8 +61,8 @@ export default async function DashboardPage() {
   // Get income by category (INCOME)
   const incomeCategoryTotals: Record<string, { name: string; total: number }> = {};
   transactions
-    .filter((t) => t.type === 'INCOME')
-    .forEach((t) => {
+    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
+    .forEach((t: any) => {  // ← MUDANÇA
       const catName = t.category?.name || 'Outros';
       if (!incomeCategoryTotals[catName]) {
         incomeCategoryTotals[catName] = { name: catName, total: 0 };
@@ -91,12 +91,12 @@ export default async function DashboardPage() {
     });
 
     const monthIncome = monthTransactions
-      .filter((t) => t.type === 'INCOME')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
 
     const monthExpenses = monthTransactions
-      .filter((t) => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + t.amountCents, 0);
+      .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
+      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
 
     // Format monthValue as YYYY-MM for URL parameter
     const monthValue = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
     orderBy: { date: 'desc' },
   });
 
-  const allTransactions = allTransactionsData.map((t) => ({
+  const allTransactions = allTransactionsData.map((t: any) => ({  // ← MUDANÇA
     id: t.id,
     description: t.description,
     amount: t.amountCents,
@@ -132,9 +132,9 @@ export default async function DashboardPage() {
   // Get recent transactions (last 30 days only)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const recentTransactions = transactions
-    .filter((t) => t.date >= thirtyDaysAgo)
+    .filter((t: any) => t.date >= thirtyDaysAgo)  // ← MUDANÇA
     .slice(0, 10)
-    .map((t) => ({
+    .map((t: any) => ({  // ← MUDANÇA
       id: t.id,
       description: t.description,
       amount: t.amountCents,
