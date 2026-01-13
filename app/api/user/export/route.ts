@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         status: user.subscription.status,
         currentPeriodEnd: user.subscription.currentPeriodEnd,
       } : null,
-      transactions: transactions.map((t) => ({
+transactions: transactions.map((t: any) => ({
         description: t.description,
         type: t.type,
         amount: t.amountCents / 100,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         date: t.date,
         createdAt: t.createdAt,
       })),
-      recurringRules: recurringRules.map((r) => ({
+      recurringRules: recurringRules.map((r: any) => ({
         description: r.description,
         type: r.type,
         transactionType: r.transactionType,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
         category: r.category?.name,
         isActive: r.isActive,
       })),
-      customTemplates: templates.map((t) => ({
+      customTemplates: templates.map((t: any) => ({
         name: t.name,
         type: t.type,
         category: t.category?.name,
