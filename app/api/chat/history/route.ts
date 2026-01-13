@@ -59,7 +59,7 @@ export async function GET() {
 
     return NextResponse.json({
       isPro: true,
-      messages: messages.map((msg) => ({
+      messages: messages.map((msg: any) => ({  // ← MUDANÇA AQUI: any
         id: msg.id,
         role: msg.role,
         content: msg.content,
