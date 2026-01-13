@@ -12,40 +12,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { mode } = body ?? {};
 
     if (!mode || !['PERSONAL', 'BUSINESS'].includes(mode)) {
-      return NextResponse.json(
-        { error: 'Modo inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Modo inválido' }, { status: 400 });
     }
 
-    const existingProfile = await prisma.userProfile.findUnique({
+    // Use findFirst em vez de findUnique para evitar erros se userId não for unique
+    const existingProfile = await prisma.userProfile.findFirst({
       where: { userId: session.user.id },
     });
 
     if (existingProfile) {
-      return NextResponse.json(
-        { error: 'Perfil já configurado' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Perfil já configurado' }, { status: 400 });
     }
 
     await prisma.userProfile.create({
       data: {
         userId: session.user.id,
-        mode: mode as 'PERSONAL' | 'BUSINESS',  // ← MUDANÇA AQUI
+        mode: mode as 'PERSONAL' | 'BUSINESS',
       },
     });
 
     return NextResponse.json({ success: true, mode });
   } catch (error) {
     console.error('Onboarding error:', error);
-    return NextResponse.json(
-      { error: 'Erro ao configurar perfil' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao configurar perfil' }, { status: 500 });
   }
 }
