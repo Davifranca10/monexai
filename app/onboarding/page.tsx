@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedMode, setSelectedMode] = useState<'PERSONAL' | 'BUSINESS' | null>(null);
+  const isSubmitting = useRef(false); // Previne duplo clique
 
   // Se o usuário já tiver perfil na sessão, manda ele direto pro dashboard
   useEffect(() => {
@@ -23,11 +24,18 @@ export default function OnboardingPage() {
   }, [session, router]);
 
   const handleContinue = async () => {
+    // Previne múltiplos cliques
+    if (isSubmitting.current) {
+      console.log('Já está processando, ignorando clique duplicado');
+      return;
+    }
+
     if (!selectedMode) {
       toast.error('Selecione um modo');
       return;
     }
 
+    isSubmitting.current = true;
     setLoading(true);
 
     try {
@@ -39,36 +47,43 @@ export default function OnboardingPage() {
 
       const data = await res.json().catch(() => ({}));
 
-      // Sucesso: perfil criado — atualiza sessão e vai pro dashboard
-      if (res.ok) {
-        try {
-          if (typeof update === 'function') {
-            await update({ mode: selectedMode });
-          }
-        } catch (err) {
-          console.warn('Falha ao atualizar sessão local:', err);
-        }
-
-        toast.success('Perfil configurado!');
+      // Caso 1: Perfil já existe no banco - redirecionar direto
+      if (res.status === 400 && data?.error === 'Perfil já configurado') {
+        toast.info('Você já tem um perfil configurado. Redirecionando...');
         router.replace('/app/dashboard');
         return;
       }
 
-      // REMOVI O BLOCO QUE TRATAVA "Perfil já configurado"
-      // Agora ele vai direto para o dashboard se já tiver perfil
-
-      // Caso: não autorizado (sessão expirada) — pedir login
+      // Caso 2: Não autorizado (sessão expirada) - pedir login
       if (res.status === 401) {
         toast.error('Sessão expirada. Faça login novamente.');
         router.replace('/login');
         return;
       }
 
+      // Caso 3: Sucesso - perfil criado agora
+      if (res.ok) {
+        toast.success('Perfil criado com sucesso!');
+        
+        // Atualiza a sessão de forma não-bloqueante
+        if (typeof update === 'function') {
+          update({ mode: selectedMode }).catch((err) => {
+            console.warn('Falha ao atualizar sessão local:', err);
+          });
+        }
+
+        // Redireciona IMEDIATAMENTE sem esperar a sessão atualizar
+        router.replace('/app/dashboard');
+        return;
+      }
+
       // Outros erros
       toast.error(data?.error || 'Erro ao configurar perfil');
+      isSubmitting.current = false; // Libera para tentar novamente apenas em caso de erro
     } catch (error) {
       console.error('Onboarding error (client):', error);
       toast.error('Erro ao configurar perfil');
+      isSubmitting.current = false; // Libera para tentar novamente apenas em caso de erro
     } finally {
       setLoading(false);
     }
@@ -97,8 +112,8 @@ export default function OnboardingPage() {
               selectedMode === 'PERSONAL'
                 ? 'ring-2 ring-green-600 bg-green-50'
                 : ''
-            }`}
-            onClick={() => setSelectedMode('PERSONAL')}
+            } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+            onClick={() => !loading && setSelectedMode('PERSONAL')}
           >
             <CardHeader className="text-center pb-2">
               <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-2">
@@ -119,8 +134,8 @@ export default function OnboardingPage() {
               selectedMode === 'BUSINESS'
                 ? 'ring-2 ring-green-600 bg-green-50'
                 : ''
-            }`}
-            onClick={() => setSelectedMode('BUSINESS')}
+            } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+            onClick={() => !loading && setSelectedMode('BUSINESS')}
           >
             <CardHeader className="text-center pb-2">
               <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-2">
