@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { AssinaturaClient } from './assinatura-client';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 10; // ✅ Cache de 10s (dados financeiros)
 
 export default async function AssinaturaPage() {
   const session = await getServerSession(authOptions);

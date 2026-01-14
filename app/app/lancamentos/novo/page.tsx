@@ -5,7 +5,7 @@ import { NovoLancamentoClient } from './novo-lancamento-client';
 import { FREEMIUM_LIMITS } from '@/lib/utils';
 import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 0; // Essa página pode ter revalidate 0 (sempre fresh)
 
 export default async function NovoLancamentoPage() {
   const session = await getServerSession(authOptions);
@@ -13,46 +13,35 @@ export default async function NovoLancamentoPage() {
 
   if (!userId) return null;
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId },
-  });
-
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId },
-  });
+  const [profile, subscription, transactionCount] = await Promise.all([
+    prisma.userProfile.findUnique({ where: { userId } }),
+    prisma.subscription.findUnique({ where: { userId } }),
+    prisma.transaction.count({
+      where: {
+        userId,
+        createdAt: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+      },
+    }),
+  ]);
 
   const isPro = subscription?.status === 'ACTIVE';
 
-  // Check freemium limit
-  if (!isPro) {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const count = await prisma.transaction.count({
-      where: {
-        userId,
-        createdAt: { gte: startOfMonth },
-      },
-    });
-
-    if (count >= FREEMIUM_LIMITS.transactionsPerMonth) {
-      redirect('/app/assinatura?limit=transactions');
-    }
+  if (!isPro && transactionCount >= FREEMIUM_LIMITS.transactionsPerMonth) {
+    redirect('/app/assinatura?limit=transactions');
   }
 
-  const categories = await prisma.category.findMany({
-    where: { mode: profile?.mode || 'PERSONAL' },
-  });
-
-  const templates = await prisma.template.findMany({
-    where: {
-      mode: profile?.mode || 'PERSONAL',
-      OR: [
-        { isSystem: true },
-        { userId },
-      ],
-    },
-    include: { category: true },
-  });
+  const [categories, templates] = await Promise.all([
+    prisma.category.findMany({
+      where: { mode: profile?.mode || 'PERSONAL' },
+    }),
+    prisma.template.findMany({
+      where: {
+        mode: profile?.mode || 'PERSONAL',
+        OR: [{ isSystem: true }, { userId }],
+      },
+      include: { category: true },
+    }),
+  ]);
 
   return (
     <NovoLancamentoClient

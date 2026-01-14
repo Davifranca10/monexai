@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TemplatesClient } from './templates-client';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30;
 
 export default async function TemplatesPage() {
   const session = await getServerSession(authOptions);
@@ -11,42 +11,33 @@ export default async function TemplatesPage() {
 
   if (!userId) return null;
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId },
-  });
+  const [profile, subscription, templates, categories, hiddenTemplates] = await Promise.all([
+    prisma.userProfile.findUnique({ where: { userId } }),
+    prisma.subscription.findUnique({ where: { userId } }),
+    prisma.template.findMany({
+      where: {
+        mode: 'PERSONAL',
+        OR: [{ isSystem: true }, { userId }],
+      },
+      include: { category: true },
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+    }),
+    prisma.category.findMany({
+      where: { mode: 'PERSONAL' },
+    }),
+    prisma.hiddenTemplate.findMany({
+      where: { userId },
+      select: { templateId: true },
+    }),
+  ]);
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId },
-  });
-
-  const isPro = subscription?.status === 'ACTIVE';
-
-  const templates = await prisma.template.findMany({
-    where: {
-      mode: profile?.mode || 'PERSONAL',
-      OR: [
-        { isSystem: true },
-        { userId },
-      ],
-    },
-    include: { category: true },
-    orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
-  });
-
-  const categories = await prisma.category.findMany({
-    where: { mode: profile?.mode || 'PERSONAL' },
-  });
-
-  // Get hidden template IDs for this user
-  const hiddenTemplates = await prisma.hiddenTemplate.findMany({
-    where: { userId },
-    select: { templateId: true },
-  });
-  const hiddenTemplateIds = hiddenTemplates.map((h: any) => h.templateId);
+  const userMode = profile?.mode || 'PERSONAL';
+  const filteredTemplates = templates.filter(t => t.mode === userMode);
+  const filteredCategories = categories.filter(c => c.mode === userMode);
 
   return (
     <TemplatesClient
-      templates={templates.map((t: any) => ({
+      templates={filteredTemplates.map((t: any) => ({
         id: t.id,
         name: t.name,
         description: t.description,
@@ -56,9 +47,9 @@ export default async function TemplatesPage() {
         isSystem: t.isSystem,
         amountCents: t.amountCents,
       }))}
-      categories={categories.map((c: any) => ({ id: c.id, name: c.name }))}
-      isPro={isPro}
-      hiddenTemplateIds={hiddenTemplateIds}
+      categories={filteredCategories.map((c: any) => ({ id: c.id, name: c.name }))}
+      isPro={subscription?.status === 'ACTIVE'}
+      hiddenTemplateIds={hiddenTemplates.map((h: any) => h.templateId)}
     />
   );
 }

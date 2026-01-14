@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { RecorrenciasClient } from './recorrencias-client';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30; // ✅ Cache de 30s
 
 export default async function RecorrenciasPage() {
   const session = await getServerSession(authOptions);
@@ -11,25 +11,23 @@ export default async function RecorrenciasPage() {
 
   if (!userId) return null;
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId },
-  });
+  // ✅ Queries em PARALELO
+  const [profile, subscription, rules, categories] = await Promise.all([
+    prisma.userProfile.findUnique({ where: { userId } }),
+    prisma.subscription.findUnique({ where: { userId } }),
+    prisma.recurringRule.findMany({
+      where: { userId },
+      include: { category: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.category.findMany({
+      where: { mode: 'PERSONAL' }, // Vamos buscar depois baseado no profile
+    }),
+  ]);
 
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId },
-  });
-
-  const isPro = subscription?.status === 'ACTIVE';
-
-  const rules = await prisma.recurringRule.findMany({
-    where: { userId },
-    include: { category: true },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const categories = await prisma.category.findMany({
-    where: { mode: profile?.mode || 'PERSONAL' },
-  });
+  // Filtrar categorias pelo mode
+  const userMode = profile?.mode || 'PERSONAL';
+  const filteredCategories = categories.filter(c => c.mode === userMode);
 
   return (
     <RecorrenciasClient
@@ -48,8 +46,8 @@ export default async function RecorrenciasPage() {
         isActive: r.isActive,
         startDate: r.startDate.toISOString(),
       }))}
-      categories={categories.map((c: any) => ({ id: c.id, name: c.name }))}
-      isPro={isPro}
+      categories={filteredCategories.map((c: any) => ({ id: c.id, name: c.name }))}
+      isPro={subscription?.status === 'ACTIVE'}
     />
   );
 }

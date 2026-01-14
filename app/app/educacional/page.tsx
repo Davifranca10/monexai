@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { EducacionalClient } from './educacional-client';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // ✅ Cache de 1 hora (conteúdo estático)
 
 export default async function EducacionalPage() {
   const session = await getServerSession(authOptions);
@@ -16,9 +16,7 @@ export default async function EducacionalPage() {
     where: { userId },
   });
 
-  const isPro = subscription?.status === 'ACTIVE';
-
-  if (!isPro) {
+  if (subscription?.status !== 'ACTIVE') {
     redirect('/app/dashboard?upgrade=educacional');
   }
 
