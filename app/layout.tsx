@@ -1,15 +1,3 @@
-// BEM NO TOPO DO ARQUIVO, antes de qualquer import
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('🚀 APPLICATION STARTING');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log('Environment:', {
-  NODE_ENV: process.env.NODE_ENV,
-  hasDatabase: !!process.env.DATABASE_URL,
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
-});
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';

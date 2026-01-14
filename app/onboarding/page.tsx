@@ -54,13 +54,8 @@ export default function OnboardingPage() {
         return;
       }
 
-      // Caso: perfil já existe — mostrar erro e pedir para o usuário fazer login
-      if (data?.error === 'Perfil já configurado') {
-        toast.error('Perfil já configurado. Faça login para acessar sua conta.');
-        // redireciona para a página de login
-        router.replace('/login');
-        return;
-      }
+      // REMOVI O BLOCO QUE TRATAVA "Perfil já configurado"
+      // Agora ele vai direto para o dashboard se já tiver perfil
 
       // Caso: não autorizado (sessão expirada) — pedir login
       if (res.status === 401) {
