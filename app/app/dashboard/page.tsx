@@ -1,10 +1,10 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { formatCurrency } from '@/lib/utils';
 import { DashboardClient } from './dashboard-client';
 
-export const dynamic = 'force-dynamic';
+// ✅ Cache de 30 segundos em vez de force-dynamic
+export const revalidate = 30;
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -17,36 +17,54 @@ export default async function DashboardPage() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const yearStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Get transactions for current month
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      userId,
-      date: {
-        gte: startOfMonth,
-        lte: endOfMonth,
+  // ✅ OTIMIZAÇÃO 1: Buscar TODAS as transações de uma vez (últimos 12 meses)
+  // Em vez de fazer 7+ queries separadas, fazemos apenas 1
+  const [allTransactionsData, recurrencesCount, subscription, profile] = await Promise.all([
+    prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: yearStart },
       },
-    },
-    include: { category: true },
-    orderBy: { date: 'desc' },
-  });
+      include: { category: true },
+      orderBy: { date: 'desc' },
+    }),
+    prisma.recurringRule.count({
+      where: { userId, isActive: true },
+    }),
+    prisma.subscription.findUnique({
+      where: { userId },
+    }),
+    prisma.userProfile.findUnique({
+      where: { userId },
+    }),
+  ]);
 
-  // Calculate totals
-  const income = transactions
-    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
-    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
+  // ✅ OTIMIZAÇÃO 2: Processar tudo em memória (muito mais rápido que queries)
+  
+  // Transações do mês atual
+  const currentMonthTransactions = allTransactionsData.filter(
+    t => t.date >= startOfMonth && t.date <= endOfMonth
+  );
 
-  const expenses = transactions
-    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
+  // Calcular totais do mês
+  const income = currentMonthTransactions
+    .filter(t => t.type === 'INCOME')
+    .reduce((sum, t) => sum + t.amountCents, 0);
+
+  const expenses = currentMonthTransactions
+    .filter(t => t.type === 'EXPENSE')
+    .reduce((sum, t) => sum + t.amountCents, 0);
 
   const balance = income - expenses;
 
-  // Get spending by category (EXPENSES)
+  // Gastos por categoria (EXPENSES)
   const categoryTotals: Record<string, { name: string; total: number }> = {};
-  transactions
-    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-    .forEach((t: any) => {  // ← MUDANÇA
+  currentMonthTransactions
+    .filter(t => t.type === 'EXPENSE')
+    .forEach(t => {
       const catName = t.category?.name || 'Outros';
       if (!categoryTotals[catName]) {
         categoryTotals[catName] = { name: catName, total: 0 };
@@ -58,11 +76,11 @@ export default async function DashboardPage() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
-  // Get income by category (INCOME)
+  // Receitas por categoria (INCOME)
   const incomeCategoryTotals: Record<string, { name: string; total: number }> = {};
-  transactions
-    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
-    .forEach((t: any) => {  // ← MUDANÇA
+  currentMonthTransactions
+    .filter(t => t.type === 'INCOME')
+    .forEach(t => {
       const catName = t.category?.name || 'Outros';
       if (!incomeCategoryTotals[catName]) {
         incomeCategoryTotals[catName] = { name: catName, total: 0 };
@@ -74,7 +92,7 @@ export default async function DashboardPage() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
-  // Get monthly evolution data (last 6 months)
+  // ✅ OTIMIZAÇÃO 3: Evolução mensal SEM queries adicionais
   const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const monthlyData: { month: string; monthValue: string; income: number; expenses: number }[] = [];
   
@@ -83,22 +101,19 @@ export default async function DashboardPage() {
     const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
     const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
 
-    const monthTransactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        date: { gte: monthStart, lte: monthEnd },
-      },
-    });
+    // Filtrar transações do mês em memória (sem query!)
+    const monthTransactions = allTransactionsData.filter(
+      t => t.date >= monthStart && t.date <= monthEnd
+    );
 
     const monthIncome = monthTransactions
-      .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
+      .filter(t => t.type === 'INCOME')
+      .reduce((sum, t) => sum + t.amountCents, 0);
 
     const monthExpenses = monthTransactions
-      .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← MUDANÇA
+      .filter(t => t.type === 'EXPENSE')
+      .reduce((sum, t) => sum + t.amountCents, 0);
 
-    // Format monthValue as YYYY-MM for URL parameter
     const monthValue = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
 
     monthlyData.push({
@@ -109,18 +124,8 @@ export default async function DashboardPage() {
     });
   }
 
-  // Get all transactions for filtering (last 12 months)
-  const yearStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-  const allTransactionsData = await prisma.transaction.findMany({
-    where: {
-      userId,
-      date: { gte: yearStart },
-    },
-    include: { category: true },
-    orderBy: { date: 'desc' },
-  });
-
-  const allTransactions = allTransactionsData.map((t: any) => ({  // ← MUDANÇA
+  // Preparar todas as transações para filtros
+  const allTransactions = allTransactionsData.map(t => ({
     id: t.id,
     description: t.description,
     amount: t.amountCents,
@@ -129,12 +134,11 @@ export default async function DashboardPage() {
     date: t.date.toISOString(),
   }));
 
-  // Get recent transactions (last 30 days only)
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const recentTransactions = transactions
-    .filter((t: any) => t.date >= thirtyDaysAgo)  // ← MUDANÇA
+  // Transações recentes (últimos 30 dias)
+  const recentTransactions = allTransactionsData
+    .filter(t => t.date >= thirtyDaysAgo)
     .slice(0, 10)
-    .map((t: any) => ({  // ← MUDANÇA
+    .map(t => ({
       id: t.id,
       description: t.description,
       amount: t.amountCents,
@@ -142,20 +146,6 @@ export default async function DashboardPage() {
       category: t.category?.name || 'Outros',
       date: t.date.toISOString(),
     }));
-
-  // Get active recurrences count
-  const recurrencesCount = await prisma.recurringRule.count({
-    where: { userId, isActive: true },
-  });
-
-  // Get subscription
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId },
-  });
-
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId },
-  });
 
   return (
     <DashboardClient
@@ -170,7 +160,7 @@ export default async function DashboardPage() {
       recurrencesCount={recurrencesCount}
       isPro={subscription?.status === 'ACTIVE'}
       mode={profile?.mode || 'PERSONAL'}
-      transactionCount={transactions.length}
+      transactionCount={currentMonthTransactions.length}
     />
   );
 }

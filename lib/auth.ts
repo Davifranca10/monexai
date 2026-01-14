@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
 export const authOptions: NextAuthOptions = {
-  // ❌ NÃO USE ADAPTER COM CREDENTIALS
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -13,43 +12,40 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Senha', type: 'password' },
       },
       async authorize(credentials) {
-        console.log('➡️ AUTHORIZE CHAMADO');
+
 
         try {
           if (!credentials?.email || !credentials?.password) {
-            console.log('❌ Credenciais vazias');
+
             return null;
           }
 
-          console.log('📧 Buscando usuário:', credentials.email);
+
 
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
             include: { profile: true, subscription: true },
           });
 
-          console.log('🔍 Resultado da busca:', user ? 'ENCONTRADO' : 'NÃO ENCONTRADO');
+
 
           if (!user) {
-            console.log('❌ Usuário não existe no banco');
+
             return null;
           }
 
-          console.log('🔐 Verificando senha...');
+
 
           const isValid = await bcrypt.compare(
             credentials.password,
             user.passwordHash
           );
 
-          console.log('🔐 Senha válida?', isValid);
 
           if (!isValid) {
-            console.log('❌ Senha incorreta');
             return null;
           }
 
-          console.log('✅ LOGIN AUTORIZADO');
 
           return {
             id: user.id,
@@ -94,5 +90,5 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     newUser: '/onboarding',
   },
-  debug: false, 
+  debug: false,
 };

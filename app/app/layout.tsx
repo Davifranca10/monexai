@@ -5,6 +5,9 @@ import { prisma } from '@/lib/db';
 import { AppSidebar } from '@/components/app-sidebar';
 import { ChatWidget } from '@/components/chat-widget';
 
+// ✅ Cache de 60 segundos para o layout
+export const revalidate = 60;
+
 export default async function AppLayout({
   children,
 }: {
@@ -16,19 +19,19 @@ export default async function AppLayout({
     redirect('/login');
   }
 
-  // Check if user has completed onboarding
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId: session.user.id },
-  });
+  // ✅ OTIMIZAÇÃO: Buscar profile e subscription em PARALELO
+  const [profile, subscription] = await Promise.all([
+    prisma.userProfile.findUnique({
+      where: { userId: session.user.id },
+    }),
+    prisma.subscription.findUnique({
+      where: { userId: session.user.id },
+    }),
+  ]);
 
   if (!profile) {
     redirect('/onboarding');
   }
-
-  // Get subscription status
-  const subscription = await prisma.subscription.findUnique({
-    where: { userId: session.user.id },
-  });
 
   const isPro = subscription?.status === 'ACTIVE';
 
