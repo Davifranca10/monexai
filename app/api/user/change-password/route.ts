@@ -3,11 +3,29 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { apiLimiter, getClientIp } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: protect against brute force attacks
+    const clientIp = getClientIp(request.headers);
+    const rateLimitResult = apiLimiter.isAllowed(clientIp);
+
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      return NextResponse.json(
+        { error: 'Muitas requisições. Tente novamente em alguns instantes.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString(),
+          },
+        }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

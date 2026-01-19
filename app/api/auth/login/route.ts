@@ -1,11 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { loginLimiter, getClientIp } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: max 5 attempts per 15 minutes per IP
+    const clientIp = getClientIp(request.headers);
+    const rateLimitResult = loginLimiter.isAllowed(clientIp);
+
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error: 'Muitas tentativas de login. Tente novamente em alguns minutos.',
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString(),
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Current': rateLimitResult.current.toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const { email, password } = body ?? {};
 

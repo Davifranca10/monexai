@@ -16,7 +16,7 @@ import {
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils';
 
-type SubscriptionStatus = 'FREEMIUM' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE';  // ← ADICIONAR AQUI
+type SubscriptionStatus = 'FREEMIUM' | 'ACTIVE' | 'CANCELED' | 'PAST_DUE';
 
 interface AssinaturaClientProps {
   subscription: {
@@ -36,6 +36,33 @@ const proFeatures = [
   'Relatórios comparativos',
 ];
 
+const plans = [
+  {
+    id: 'monthly',
+    name: 'Mensal',
+    price: 29.90,
+    period: 'mês',
+    savings: null,
+    popular: false,
+  },
+  {
+    id: 'semiannual',
+    name: 'Semestral',
+    price: 149.90,
+    period: '6 meses',
+    savings: 16,
+    popular: true,
+  },
+  {
+    id: 'annual',
+    name: 'Anual',
+    price: 299.90,
+    period: 'ano',
+    savings: 16,
+    popular: false,
+  },
+];
+
 export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
   const searchParams = useSearchParams();
   const upgrade = searchParams?.get('upgrade');
@@ -43,6 +70,7 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
   
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('semiannual'); // Default: Semestral
 
   const isPro = subscription?.status === 'ACTIVE';
   const isPastDue = subscription?.status === 'PAST_DUE';
@@ -50,7 +78,11 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
   const handleCheckout = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/stripe/checkout', { method: 'POST' });
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: selectedPlan }),
+      });
       const data = await res.json();
 
       if (data?.url) {
@@ -84,7 +116,7 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <CreditCard className="h-8 w-8 text-green-700" />
         <h1 className="text-2xl font-bold">Assinatura</h1>
@@ -170,52 +202,88 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
         </CardContent>
       </Card>
 
-      {/* Pro Plan Card */}
+      {/* Pro Plans */}
       {!isPro && (
-        <Card className="border-green-600 border-2">
-          <CardHeader className="bg-green-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Crown className="h-6 w-6 text-amber-500" />
-                  Plano Pro
-                </CardTitle>
-                <CardDescription>Desbloqueie todo o potencial do MonexAI</CardDescription>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-green-700">R$ 29,90</p>
-                <p className="text-sm text-gray-500">/mês</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <ul className="space-y-3 mb-6">
-              {proFeatures.map((feature) => (
-                <li key={feature} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+        <>
+          <h2 className="text-2xl font-bold mb-4 text-center">Escolha seu plano</h2>
+          
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            {plans.map((plan) => (
+              <Card
+                key={plan.id}
+                className={`cursor-pointer transition-all ${
+                  selectedPlan === plan.id
+                    ? 'border-green-600 border-2 shadow-lg'
+                    : 'border-gray-200 hover:border-green-400'
+                } ${plan.popular ? 'relative' : ''}`}
+                onClick={() => setSelectedPlan(plan.id)}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-green-600">Mais Popular</Badge>
+                  </div>
+                )}
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                    <div className="mb-4">
+                      <span className="text-3xl font-bold text-green-700">
+                        R$ {plan.price.toFixed(2)}
+                      </span>
+                      <span className="text-gray-500">/{plan.period}</span>
+                    </div>
+                    {plan.savings && (
+                      <Badge variant="secondary" className="mb-4">
+                        Economize {plan.savings}%
+                      </Badge>
+                    )}
+                    <div className="text-sm text-gray-600">
+                      {plan.id === 'monthly' && 'Renovação mensal'}
+                      {plan.id === 'semiannual' && 'R$ 24,98/mês'}
+                      {plan.id === 'annual' && 'R$ 24,99/mês'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-            <Button
-              className="w-full bg-green-700 hover:bg-green-800 text-lg py-6"
-              onClick={handleCheckout}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              ) : (
-                <Crown className="h-5 w-5 mr-2" />
-              )}
-              Assinar Plano Pro
-            </Button>
+          <Card className="border-green-600 border-2">
+            <CardHeader className="bg-green-50">
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-6 w-6 text-amber-500" />
+                O que está incluso:
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ul className="grid md:grid-cols-2 gap-3 mb-6">
+                {proFeatures.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
 
-            <p className="text-center text-sm text-gray-500 mt-4">
-              Pagamento seguro via Stripe. Cancele quando quiser.
-            </p>
-          </CardContent>
-        </Card>
+              <Button
+                className="w-full bg-green-700 hover:bg-green-800 text-lg py-6"
+                onClick={handleCheckout}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                ) : (
+                  <Crown className="h-5 w-5 mr-2" />
+                )}
+                Assinar Plano {plans.find(p => p.id === selectedPlan)?.name}
+              </Button>
+
+              <p className="text-center text-sm text-gray-500 mt-4">
+                Pagamento seguro via Stripe. Cancele quando quiser.
+              </p>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
