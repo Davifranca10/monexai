@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   MessageCircle,
@@ -16,10 +15,12 @@ import {
   AlertCircle,
   Crown,
   Trash2,
+  RefreshCw,
+  Lock,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Message {
@@ -30,7 +31,10 @@ interface Message {
 }
 
 export function ChatWidget() {
-  const { data: session, status } = useSession() || {};
+  const sessionData = useSession();
+  const session = sessionData?.data;
+  const status = sessionData?.status || 'loading';
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -43,7 +47,6 @@ export function ChatWidget() {
   const [clearingChat, setClearingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -52,9 +55,9 @@ export function ChatWidget() {
     scrollToBottom();
   }, [messages]);
 
-  // Load chat history and check subscription when widget opens
   useEffect(() => {
     if (isOpen && session?.user?.id) {
+      console.log('🔄 Chat aberto - carregando dados...');
       loadChatData();
     }
   }, [isOpen, session?.user?.id]);
@@ -62,25 +65,39 @@ export function ChatWidget() {
   const loadChatData = async () => {
     setLoadingHistory(true);
     try {
+      console.log('📡 Buscando /api/chat/history...');
       const res = await fetch('/api/chat/history');
       const data = await res.json();
+
+      console.log('📦 Resposta:', { 
+        status: res.status, 
+        isPro: data.isPro,
+        messageCount: data.messages?.length 
+      });
 
       if (res.ok) {
         setMessages(data.messages || []);
         setIsPro(data.isPro || false);
         setDailyCount(data.dailyCount || 0);
         setLimitReached(data.limitReached || false);
+        
+        console.log('✅ Chat carregado:', {
+          isPro: data.isPro,
+          messages: data.messages?.length,
+        });
       } else {
-        console.error('Erro ao carregar histórico:', data.error);
+        console.error('❌ Erro ao carregar histórico:', data.error);
+        if (res.status === 403) {
+          setIsPro(false);
+        }
       }
     } catch (error) {
-      console.error('Erro ao carregar dados do chat:', error);
+      console.error('❌ Erro ao carregar dados do chat:', error);
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  // Load user avatar
   useEffect(() => {
     if (session?.user?.id) {
       fetch('/api/user/avatar')
@@ -123,12 +140,17 @@ export function ChatWidget() {
   };
 
   const handleSend = async () => {
+    // ✅ Bloquear se não for Pro
+    if (!isPro) {
+      toast.error('Chat com IA é exclusivo para usuários Pro');
+      return;
+    }
+
     if (!input.trim() || isLoading || limitReached) return;
 
     const userMessage = input.trim();
     setInput('');
 
-    // Add user message to UI immediately
     const tempUserMsg: Message = {
       id: `temp-${Date.now()}`,
       role: 'user',
@@ -148,6 +170,14 @@ export function ChatWidget() {
 
       if (!res.ok) {
         const errorData = await res.json();
+        
+        if (res.status === 403) {
+          setIsPro(false);
+          toast.error('Este recurso é exclusivo para usuários Pro');
+          setMessages((prev) => prev.filter((msg) => msg.id !== tempUserMsg.id));
+          return;
+        }
+        
         throw new Error(errorData.error || 'Erro ao enviar mensagem');
       }
 
@@ -199,14 +229,13 @@ export function ChatWidget() {
                 setLimitReached(true);
               }
             } catch (e) {
-              // Ignore parsing errors for incomplete chunks
+              // Ignore parsing errors
             }
           }
         }
       }
     } catch (error: any) {
       toast.error(error.message || 'Erro ao enviar mensagem');
-      // Remove temporary user message on error
       setMessages((prev) => prev.filter((msg) => msg.id !== tempUserMsg.id));
     } finally {
       setIsLoading(false);
@@ -220,20 +249,25 @@ export function ChatWidget() {
     }
   };
 
-  // Don't show widget if not authenticated
   if (status === 'loading') return null;
-  if (!session?.user) return null;
+  if (status === 'unauthenticated' || !session?.user) return null;
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Button - SEMPRE visível */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110"
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 relative group"
           aria-label="Abrir Chat IA"
         >
           <MessageCircle className="h-6 w-6" />
+          {/* Badge Pro/Free */}
+          {!isPro && (
+            <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
+              <Lock className="h-3 w-3 text-white" />
+            </div>
+          )}
         </button>
       )}
 
@@ -241,17 +275,39 @@ export function ChatWidget() {
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-green-700 to-green-600 text-white px-4 py-3 flex items-center justify-between">
+          <div className={`px-4 py-3 flex items-center justify-between ${
+            isPro 
+              ? 'bg-gradient-to-r from-green-700 to-green-600' 
+              : 'bg-gradient-to-r from-gray-600 to-gray-500'
+          } text-white`}>
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <div>
-                <h3 className="font-semibold text-sm">Chat com IA</h3>
-                <p className="text-xs text-green-100">
-                  Assistente Financeiro Pessoal
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-sm">Chat com IA</h3>
+                  {isPro ? (
+                    <Crown className="h-4 w-4 text-yellow-300" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-gray-300" />
+                  )}
+                </div>
+                <p className="text-xs text-white/80">
+                  {isPro ? 'Assistente Financeiro Pessoal' : 'Recurso bloqueado'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadChatData}
+                disabled={loadingHistory}
+                className={`${isPro ? 'hover:bg-green-800' : 'hover:bg-gray-700'} text-white h-8 w-8 p-0`}
+                title="Recarregar status"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} />
+              </Button>
+              
               {isPro && messages.length > 0 && (
                 <Button
                   variant="ghost"
@@ -272,33 +328,105 @@ export function ChatWidget() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsOpen(false)}
-                className="hover:bg-green-800 text-white h-8 w-8 p-0"
+                className={`${isPro ? 'hover:bg-green-800' : 'hover:bg-gray-700'} text-white h-8 w-8 p-0`}
               >
                 <X className="h-5 w-5" />
               </Button>
             </div>
           </div>
 
-          {/* Pro Check */}
+          {/* Content - Diferente para Free vs Pro */}
           {!isPro ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <Crown className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="font-semibold text-lg mb-2 text-gray-900">
-                Recurso Exclusivo Pro
-              </h3>
-              <p className="text-gray-600 mb-4">
-                O Chat com IA está disponível apenas para usuários do plano Pro.
-              </p>
-              <Link href="/app/assinatura">
-                <Button className="bg-green-700 hover:bg-green-800">
-                  <Crown className="h-4 w-4 mr-2" />
-                  Ver Plano Pro
-                </Button>
-              </Link>
+            // ✅ VERSÃO FREE - Preview com Blur
+            <div className="flex-1 flex flex-col relative">
+              {/* Preview embaçado */}
+              <div className="flex-1 p-4 relative overflow-hidden">
+                {/* Mensagens de exemplo (blur) */}
+                <div className="space-y-4 blur-sm select-none pointer-events-none opacity-40">
+                  <div className="flex gap-2 justify-start">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-green-700" />
+                    </div>
+                    <div className="max-w-[75%] px-3 py-2 rounded-lg bg-gray-100">
+                      <p className="text-sm">Olá! Sou seu assistente financeiro. Como posso ajudar?</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <div className="max-w-[75%] px-3 py-2 rounded-lg bg-green-700 text-white">
+                      <p className="text-sm">Quanto gastei esse mês?</p>
+                    </div>
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-green-700 text-white">
+                        <User className="h-5 w-5" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="flex gap-2 justify-start">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-green-700" />
+                    </div>
+                    <div className="max-w-[75%] px-3 py-2 rounded-lg bg-gray-100">
+                      <p className="text-sm">Você gastou R$ 3.450,00 este mês. A maior despesa foi em Alimentação...</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overlay de bloqueio */}
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+                  <div className="text-center p-6 max-w-sm">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 mb-4 shadow-lg">
+                      <Lock className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="font-bold text-xl mb-2 text-gray-900">
+                      Recurso Exclusivo Pro
+                    </h3>
+                    <p className="text-gray-600 mb-4 text-sm">
+                      Desbloqueie o Chat com IA e tenha análises inteligentes das suas finanças, dicas personalizadas e muito mais!
+                    </p>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Sparkles className="h-4 w-4 text-yellow-500" />
+                        <span>Análises financeiras inteligentes</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Sparkles className="h-4 w-4 text-yellow-500" />
+                        <span>Respostas personalizadas 24/7</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Sparkles className="h-4 w-4 text-yellow-500" />
+                        <span>Dicas para economizar</span>
+                      </div>
+                    </div>
+                    <Link href="/app/assinatura">
+                      <Button className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white w-full shadow-lg">
+                        <Crown className="h-4 w-4 mr-2" />
+                        Assinar MonexAI Pro
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input bloqueado */}
+              <div className="border-t border-gray-200 p-4 bg-gray-50">
+                <div className="flex gap-2 relative">
+                  <Input
+                    placeholder="Chat disponível apenas no plano Pro..."
+                    disabled
+                    className="flex-1 bg-white opacity-50 cursor-not-allowed"
+                  />
+                  <Button
+                    disabled
+                    className="bg-gray-400 cursor-not-allowed"
+                  >
+                    <Lock className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
+            // ✅ VERSÃO PRO - Chat funcional
             <>
-              {/* Messages Area */}
               <ScrollArea className="flex-1 p-4">
                 {loadingHistory ? (
                   <div className="flex items-center justify-center h-full">
@@ -340,7 +468,7 @@ export function ChatWidget() {
                         </div>
                         {msg.role === 'user' && (
                           <Avatar className="w-8 h-8 flex-shrink-0">
-                            <AvatarImage src={userAvatarUrl || undefined} alt="Avatar do usuário" />
+                            <AvatarImage src={userAvatarUrl || undefined} alt="Avatar" />
                             <AvatarFallback className="bg-green-700 text-white">
                               <User className="h-5 w-5" />
                             </AvatarFallback>
@@ -353,19 +481,17 @@ export function ChatWidget() {
                 )}
               </ScrollArea>
 
-              {/* Limit Warning */}
               {limitReached && (
                 <div className="px-4 py-2 bg-red-50 border-t border-red-200">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-red-800">
-                      Suas perguntas foram temporariamente bloqueadas por uso excessivo. Tente novamente mais tarde.
+                      Limite diário atingido. Tente novamente amanhã.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Input Area */}
               <div className="border-t border-gray-200 p-4">
                 <div className="flex gap-2">
                   <Input
@@ -394,7 +520,7 @@ export function ChatWidget() {
         </div>
       )}
 
-      {/* Mobile Overlay */}
+      {/* Mobile Responsive */}
       {isOpen && (
         <style jsx global>{`
           @media (max-width: 768px) {
