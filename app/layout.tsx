@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'sonner';
-import { ChatWidget } from '@/components/chat-widget';
+import { ChatWidget } from '../components/chat-widget';
 
 export const dynamic = 'force-dynamic';
 
