@@ -1,8 +1,5 @@
 'use client';
 
-console.log('🟢 ARQUIVO chat-widget.tsx CARREGADO!');
-
-
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -34,9 +31,7 @@ interface Message {
 }
 
 export function ChatWidget() {
-  const sessionData = useSession();
-  const session = sessionData?.data;
-  const status = sessionData?.status || 'loading';
+  const { data: session, status } = useSession();
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,13 +45,6 @@ export function ChatWidget() {
   const [clearingChat, setClearingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  console.log('🔵 ChatWidget RENDERIZANDO', { 
-    status, 
-    authenticated: status === 'authenticated',
-    hasUser: !!session?.user 
-  });
-
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -67,7 +55,6 @@ export function ChatWidget() {
 
   useEffect(() => {
     if (isOpen && session?.user?.id) {
-      console.log('🔄 Chat aberto - carregando dados...');
       loadChatData();
     }
   }, [isOpen, session?.user?.id]);
@@ -75,34 +62,21 @@ export function ChatWidget() {
   const loadChatData = async () => {
     setLoadingHistory(true);
     try {
-      console.log('📡 Buscando /api/chat/history...');
       const res = await fetch('/api/chat/history');
       const data = await res.json();
-
-      console.log('📦 Resposta:', { 
-        status: res.status, 
-        isPro: data.isPro,
-        messageCount: data.messages?.length 
-      });
 
       if (res.ok) {
         setMessages(data.messages || []);
         setIsPro(data.isPro || false);
         setDailyCount(data.dailyCount || 0);
         setLimitReached(data.limitReached || false);
-        
-        console.log('✅ Chat carregado:', {
-          isPro: data.isPro,
-          messages: data.messages?.length,
-        });
       } else {
-        console.error('❌ Erro ao carregar histórico:', data.error);
         if (res.status === 403) {
           setIsPro(false);
         }
       }
     } catch (error) {
-      console.error('❌ Erro ao carregar dados do chat:', error);
+      console.error('Erro ao carregar dados do chat:', error);
     } finally {
       setLoadingHistory(false);
     }
@@ -150,7 +124,6 @@ export function ChatWidget() {
   };
 
   const handleSend = async () => {
-    // ✅ Bloquear se não for Pro
     if (!isPro) {
       toast.error('Chat com IA é exclusivo para usuários Pro');
       return;
@@ -259,29 +232,20 @@ export function ChatWidget() {
     }
   };
 
-  if (status === 'loading') {
-  console.log('⏳ ChatWidget: Aguardando autenticação...');
-  return null;
-}
-if (status === 'unauthenticated' || !session?.user) {
-  console.log('🔒 ChatWidget: Usuário não autenticado');
-  return null;
-}
-
-console.log('✅ ChatWidget: Renderizando botão!');
-
+  // ✅ REMOVIDO O BLOQUEIO - Agora sempre renderiza
+  // Apenas não mostra se não tiver sessão
+  const isAuthenticated = status === 'authenticated' && session?.user;
 
   return (
     <>
-      {/* Floating Button - SEMPRE visível */}
-      {!isOpen && (
+      {/* Floating Button - SEMPRE visível quando autenticado */}
+      {!isOpen && isAuthenticated && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 relative group"
           aria-label="Abrir Chat IA"
         >
           <MessageCircle className="h-6 w-6" />
-          {/* Badge Pro/Free */}
           {!isPro && (
             <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
               <Lock className="h-3 w-3 text-white" />
@@ -290,8 +254,8 @@ console.log('✅ ChatWidget: Renderizando botão!');
         </button>
       )}
 
-      {/* Pop-up Chat Widget - ✅ RESPONSIVO SEM STYLE INLINE */}
-      {isOpen && (
+      {/* Pop-up Chat Widget */}
+      {isOpen && isAuthenticated && (
         <div className="fixed bottom-6 right-6 md:right-6 md:bottom-6 z-50 
                         w-[calc(100vw-2rem)] md:w-[420px] 
                         h-[calc(100vh-2rem)] md:h-[600px] 
@@ -359,13 +323,11 @@ console.log('✅ ChatWidget: Renderizando botão!');
             </div>
           </div>
 
-          {/* Content - Diferente para Free vs Pro */}
+          {/* Content */}
           {!isPro ? (
-            // ✅ VERSÃO FREE - Preview com Blur
+            // VERSÃO FREE - Preview com Blur
             <div className="flex-1 flex flex-col relative">
-              {/* Preview embaçado */}
               <div className="flex-1 p-4 relative overflow-hidden">
-                {/* Mensagens de exemplo (blur) */}
                 <div className="space-y-4 blur-sm select-none pointer-events-none opacity-40">
                   <div className="flex gap-2 justify-start">
                     <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
@@ -395,7 +357,6 @@ console.log('✅ ChatWidget: Renderizando botão!');
                   </div>
                 </div>
 
-                {/* Overlay de bloqueio */}
                 <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
                   <div className="text-center p-6 max-w-sm">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 mb-4 shadow-lg">
@@ -431,7 +392,6 @@ console.log('✅ ChatWidget: Renderizando botão!');
                 </div>
               </div>
 
-              {/* Input bloqueado */}
               <div className="border-t border-gray-200 p-4 bg-gray-50">
                 <div className="flex gap-2 relative">
                   <Input
@@ -439,17 +399,14 @@ console.log('✅ ChatWidget: Renderizando botão!');
                     disabled
                     className="flex-1 bg-white opacity-50 cursor-not-allowed"
                   />
-                  <Button
-                    disabled
-                    className="bg-gray-400 cursor-not-allowed"
-                  >
+                  <Button disabled className="bg-gray-400 cursor-not-allowed">
                     <Lock className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             </div>
           ) : (
-            // ✅ VERSÃO PRO - Chat funcional
+            // VERSÃO PRO
             <>
               <ScrollArea className="flex-1 p-4">
                 {loadingHistory ? (
