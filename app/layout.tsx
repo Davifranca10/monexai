@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'sonner';
+import { ChatWidget } from '@/components/chat-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,13 +49,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" />
-      </head>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
+          {/* ✅ CHAT WIDGET - Aparece em todas as páginas */}
+          <ChatWidget />
         </Providers>
       </body>
     </html>
