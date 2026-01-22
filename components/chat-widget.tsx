@@ -271,9 +271,14 @@ export function ChatWidget() {
         </button>
       )}
 
-      {/* Pop-up Chat Widget */}
+      {/* Pop-up Chat Widget - ✅ RESPONSIVO SEM STYLE INLINE */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+        <div className="fixed bottom-6 right-6 md:right-6 md:bottom-6 z-50 
+                        w-[calc(100vw-2rem)] md:w-[420px] 
+                        h-[calc(100vh-2rem)] md:h-[600px] 
+                        max-h-[80vh] md:max-h-[80vh]
+                        flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden
+                        md:left-auto left-4">
           {/* Header */}
           <div className={`px-4 py-3 flex items-center justify-between ${
             isPro 
@@ -518,22 +523,6 @@ export function ChatWidget() {
             </>
           )}
         </div>
-      )}
-
-      {/* Mobile Responsive */}
-      {isOpen && (
-        <style jsx global>{`
-          @media (max-width: 768px) {
-            .fixed.bottom-6.right-6.z-50.w-\[380px\] {
-              width: calc(100vw - 2rem);
-              height: calc(100vh - 2rem);
-              max-height: none;
-              bottom: 1rem;
-              right: 1rem;
-              left: 1rem;
-            }
-          }
-        `}</style>
       )}
     </>
   );
