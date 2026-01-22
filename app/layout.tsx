@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'sonner';
-import { ChatWidget } from '../components/chat-widget';
+import { ChatWidget } from '@/components/chat-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,18 +42,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
-          {/* ✅ CHAT WIDGET - Aparece em todas as páginas */}
           <ChatWidget />
         </Providers>
       </body>

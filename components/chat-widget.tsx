@@ -1,5 +1,8 @@
 'use client';
 
+console.log('🟢 ARQUIVO chat-widget.tsx CARREGADO!');
+
+
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -46,6 +49,13 @@ export function ChatWidget() {
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [clearingChat, setClearingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  console.log('🔵 ChatWidget RENDERIZANDO', { 
+    status, 
+    authenticated: status === 'authenticated',
+    hasUser: !!session?.user 
+  });
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -249,8 +259,17 @@ export function ChatWidget() {
     }
   };
 
-  if (status === 'loading') return null;
-  if (status === 'unauthenticated' || !session?.user) return null;
+  if (status === 'loading') {
+  console.log('⏳ ChatWidget: Aguardando autenticação...');
+  return null;
+}
+if (status === 'unauthenticated' || !session?.user) {
+  console.log('🔒 ChatWidget: Usuário não autenticado');
+  return null;
+}
+
+console.log('✅ ChatWidget: Renderizando botão!');
+
 
   return (
     <>
