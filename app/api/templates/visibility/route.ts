@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         create: {
           userId: session.user.id,
           templateId,
-        },
+        } as any, // Let Prisma infer the correct type and auto-generate 'id'
       });
     } else {
       // Show template
