@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             email: user.email,
             name: user.name,
-            mode: user.profile?.mode ?? null,
+            mode: user.user_profile?.mode ?? null,
             isPro: user.subscription?.status === 'ACTIVE',
           };
         } catch (error) {

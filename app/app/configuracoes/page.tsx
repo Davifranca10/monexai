@@ -18,9 +18,9 @@ export default async function ConfiguracoesPage() {
   });
 
   let avatarUrl: string | null = null;
-  if (user?.profile?.avatarPath) {
+  if (user?.user_profile?.avatarPath) {
     try {
-      avatarUrl = await getFileUrl(user.profile.avatarPath, true);
+      avatarUrl = await getFileUrl(user.user_profile.avatarPath, true);
     } catch (e) {
       console.error('Error getting avatar URL:', e);
     }
@@ -31,7 +31,7 @@ export default async function ConfiguracoesPage() {
       user={{
         name: user?.name || '',
         email: user?.email || '',
-        mode: user?.profile?.mode || 'PERSONAL',
+        mode: user?.user_profile?.mode || 'PERSONAL',
         createdAt: user?.createdAt?.toISOString() || '',
         avatarUrl,
       }}
