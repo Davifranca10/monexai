@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
 
     const rule = await prisma.recurring_rule.create({
       data: {
+        id: crypto.randomUUID(),
         userId: session.user.id,
         description,
         amountCents: Math.round(amountCents),

@@ -10,7 +10,7 @@ datasource db {
 }
 
 model category {
-  id        String          @id
+  id        String          @id @default(cuid())
   name      String
   mode      UserMode
   type      TransactionType @default(EXPENSE)
@@ -65,7 +65,7 @@ model hidden_template {
 }
 
 model recurring_rule {
-  id                String          @id
+  id                String          @id @default(cuid())
   userId            String
   type              RecurrenceType
   categoryId        String
@@ -104,7 +104,7 @@ model recurring_run {
 }
 
 model subscription {
-  id                   String             @id
+  id                   String             @id @default(cuid())
   userId               String             @unique
   status               SubscriptionStatus @default(FREEMIUM)
   stripeCustomerId     String?            @unique
@@ -119,7 +119,7 @@ model subscription {
 }
 
 model template {
-  id          String          @id
+  id          String          @id @default(cuid())
   name        String
   description String?
   type        TransactionType
@@ -135,7 +135,7 @@ model template {
 }
 
 model transaction {
-  id              String          @id
+  id              String          @id @default(cuid())
   userId          String
   type            TransactionType
   categoryId      String
