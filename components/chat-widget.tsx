@@ -234,36 +234,36 @@ export function ChatWidget() {
     }
   };
 
-  // ✅ REMOVIDO O BLOQUEIO - Agora sempre renderiza
-  // Apenas não mostra se não tiver sessão
   const isAuthenticated = status === 'authenticated' && session?.user;
 
   return (
     <>
-      {/* Floating Button - SEMPRE visível quando autenticado */}
+      {/* Floating Button - Fixo no canto inferior direito */}
       {!isOpen && isAuthenticated && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 relative group"
+          className="fixed bottom-5 right-5 z-[9999] w-14 h-14 bg-green-700 hover:bg-green-800 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
           aria-label="Abrir Chat IA"
+          style={{ position: 'fixed' }}
         >
           <MessageCircle className="h-6 w-6" />
           {!isPro && (
-            <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1">
+            <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-1 shadow-md">
               <Lock className="h-3 w-3 text-white" />
             </div>
           )}
         </button>
       )}
 
-      {/* Pop-up Chat Widget */}
+      {/* Pop-up Chat Widget - Fixo no canto inferior direito */}
       {isOpen && isAuthenticated && (
-        <div className="fixed bottom-6 right-6 md:right-6 md:bottom-6 z-50 
-                        w-[calc(100vw-2rem)] md:w-[420px] 
-                        h-[calc(100vh-2rem)] md:h-[600px] 
-                        max-h-[80vh] md:max-h-[80vh]
-                        flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden
-                        md:left-auto left-4">
+        <div 
+          className="fixed bottom-5 right-5 z-[9999] 
+                     w-[min(420px,calc(100vw-2.5rem))] 
+                     h-[min(600px,calc(100vh-2.5rem))] 
+                     flex flex-col bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden"
+          style={{ position: 'fixed', maxHeight: '90vh' }}
+        >
           {/* Header */}
           <div className={`px-4 py-3 flex items-center justify-between ${
             isPro 
@@ -327,7 +327,7 @@ export function ChatWidget() {
 
           {/* Content */}
           {!isPro ? (
-            // VERSÃO FREE - Preview com Blur
+            // VERSÃO FREE
             <div className="flex-1 flex flex-col relative">
               <div className="flex-1 p-4 relative overflow-hidden">
                 <div className="space-y-4 blur-sm select-none pointer-events-none opacity-40">
