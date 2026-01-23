@@ -35,7 +35,7 @@ export async function GET() {
     }
 
     // Get last 30 messages
-    const messages = await prismachat_message.findMany({
+    const messages = await prisma.chatMessage.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'asc' },
       take: 30,
@@ -45,7 +45,7 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const usage = await prisma.chat_usage.findUnique({
+    const usage = await prisma.chatUsage.findUnique({
       where: {
         userId_date: {
           userId: session.user.id,
@@ -100,7 +100,7 @@ export async function DELETE() {
     }
 
     // Delete all chat messages for this user
-    await prismachat_message.deleteMany({
+    await prisma.chatMessage.deleteMany({
       where: { userId: session.user.id },
     });
 
