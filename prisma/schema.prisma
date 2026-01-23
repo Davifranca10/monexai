@@ -1,22 +1,186 @@
 generator client {
-    provider = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-enum UserMode {
-  PERSONAL
-  BUSINESS
+model category {
+  id             String           @id
+  name           String
+  mode           UserMode
+  type           TransactionType  @default(EXPENSE)
+  isSystem       Boolean          @default(true)
+  userId         String?
+  createdAt      DateTime         @default(now())
+  recurring_rule recurring_rule[]
+  template       template[]
+  transaction    transaction[]
 }
 
-enum TransactionType {
-  INCOME
-  EXPENSE
+model chat_message {
+  id        String   @id
+  userId    String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model chat_usage {
+  id            String   @id
+  userId        String
+  date          DateTime @default(now()) @db.Date
+  questionCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  users         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model hidden_template {
+  id         String   @id
+  userId     String
+  templateId String
+  createdAt  DateTime @default(now())
+  users      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, templateId])
+}
+
+model recurring_rule {
+  id                String          @id
+  userId            String
+  type              RecurrenceType
+  categoryId        String
+  description       String
+  amountCents       Int
+  transactionType   TransactionType
+  dayOfMonth        Int?
+  dayOfWeek         Int?
+  totalInstallments Int?
+  paidInstallments  Int?            @default(0)
+  startDate         DateTime
+  endDate           DateTime?
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime
+  category          category        @relation(fields: [categoryId], references: [id])
+  users             users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurring_run     recurring_run[]
+  transaction       transaction[]
+
+  @@index([userId, isActive])
+}
+
+model recurring_run {
+  id              String         @id
+  recurringRuleId String
+  executionDate   DateTime
+  transactionId   String?
+  createdAt       DateTime       @default(now())
+  recurring_rule  recurring_rule @relation(fields: [recurringRuleId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringRuleId, executionDate])
+}
+
+model subscription {
+  id                   String             @id
+  userId               String             @unique
+  status               SubscriptionStatus @default(FREEMIUM)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime
+  users                users              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model template {
+  id          String          @id
+  name        String
+  description String?
+  type        TransactionType
+  categoryId  String
+  mode        UserMode
+  isSystem    Boolean         @default(true)
+  userId      String?
+  amountCents Int?
+  createdAt   DateTime        @default(now())
+  category    category        @relation(fields: [categoryId], references: [id])
+  users       users?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model transaction {
+  id              String          @id
+  userId          String
+  type            TransactionType
+  categoryId      String
+  description     String
+  amountCents     Int
+  date            DateTime
+  interestPercent Float?          @default(0)
+  installments    Int?            @default(1)
+  recurringRuleId String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  category        category        @relation(fields: [categoryId], references: [id])
+  recurring_rule  recurring_rule? @relation(fields: [recurringRuleId], references: [id])
+  users           users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model user_profile {
+  id         String   @id
+  userId     String   @unique
+  mode       UserMode
+  avatarPath String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  users      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model users {
+  id              String            @id
+  email           String            @unique
+  name            String?
+  passwordHash    String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+  chat_message    chat_message[]
+  chat_usage      chat_usage[]
+  hidden_template hidden_template[]
+  recurring_rule  recurring_rule[]
+  subscription    subscription?
+  template        template[]
+  transaction     transaction[]
+  user_profile    user_profile?
+  spamBlock       UserSpamBlock?
+}
+
+model UserSpamBlock {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  blockedUntil DateTime
+  reason       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_spam_blocks")
 }
 
 enum RecurrenceType {
@@ -32,188 +196,12 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  passwordHash  String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  profile         UserProfile?
-  transactions    Transaction[]
-  recurringRules  RecurringRule[]
-  templates       Template[]
-  subscription    Subscription?
-  hiddenTemplates HiddenTemplate[]
-  chatMessages    ChatMessage[]
-  chatUsage       ChatUsage[]
-
-  @@map("users")
+enum TransactionType {
+  INCOME
+  EXPENSE
 }
 
-model UserProfile {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  mode       UserMode
-  avatarPath String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_profile")
-}
-
-model Category {
-  id          String          @id @default(cuid())
-  name        String
-  mode        UserMode
-  type        TransactionType @default(EXPENSE)
-  isSystem    Boolean         @default(true)
-  userId      String?
-  createdAt   DateTime        @default(now())
-
-  transactions Transaction[]
-  templates    Template[]
-  recurringRules RecurringRule[]
-
-  @@map("category")
-}
-
-model Template {
-  id          String          @id @default(cuid())
-  name        String
-  description String?
-  type        TransactionType
-  categoryId  String
-  mode        UserMode
-  isSystem    Boolean         @default(true)
-  userId      String?
-  amountCents Int?
-  createdAt   DateTime        @default(now())
-
-  category Category @relation(fields: [categoryId], references: [id])
-  user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("template")
-}
-
-model Transaction {
-  id              String          @id @default(cuid())
-  userId          String
-  type            TransactionType
-  categoryId      String
-  description     String
-  amountCents     Int
-  date            DateTime
-  interestPercent Float?          @default(0)
-  installments    Int?            @default(1)
-  recurringRuleId String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category      Category       @relation(fields: [categoryId], references: [id])
-  recurringRule RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
-
-  @@index([userId, date])
-  @@map("transaction")
-}
-
-model RecurringRule {
-  id            String         @id @default(cuid())
-  userId        String
-  type          RecurrenceType
-  categoryId    String
-  description   String
-  amountCents   Int
-  transactionType TransactionType
-  dayOfMonth    Int?           // For MONTHLY
-  dayOfWeek     Int?           // For WEEKLY (0=Sunday, 6=Saturday)
-  totalInstallments Int?       // For INSTALLMENT
-  paidInstallments  Int?       @default(0)
-  startDate     DateTime
-  endDate       DateTime?
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category      Category        @relation(fields: [categoryId], references: [id])
-  runs          RecurringRun[]
-  transactions  Transaction[]
-
-  @@index([userId, isActive])
-  @@map("recurring_rule")
-}
-
-model RecurringRun {
-  id              String   @id @default(cuid())
-  recurringRuleId String
-  executionDate   DateTime
-  transactionId   String?
-  createdAt       DateTime @default(now())
-
-  recurringRule RecurringRule @relation(fields: [recurringRuleId], references: [id], onDelete: Cascade)
-
-  @@unique([recurringRuleId, executionDate])
-  @@map("recurring_run")
-}
-
-model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String             @unique
-  status               SubscriptionStatus @default(FREEMIUM)
-  stripeCustomerId     String?            @unique
-  stripeSubscriptionId String?            @unique
-  stripePriceId        String?
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("subscription")
-}
-
-model HiddenTemplate {
-  id         String   @id @default(cuid())
-  userId     String
-  templateId String
-  createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, templateId])
-  @@map("hidden_template")
-}
-
-model ChatMessage {
-  id        String   @id @default(cuid())
-  userId    String
-  role      String   // 'user' or 'assistant'
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@map("chat_message")
-}
-
-model ChatUsage {
-  id            String   @id @default(cuid())
-  userId        String
-  date          DateTime @default(now()) @db.Date
-  questionCount Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date])
-  @@index([userId, date])
-  @@map("chat_usage")
+enum UserMode {
+  PERSONAL
+  BUSINESS
 }
