@@ -91,6 +91,7 @@ model recurring_rule {
 }
 
 model recurring_run {
+  id String @id @default(cuid())
   id              String   @id
   recurringRuleId String
   executionDate   DateTime
@@ -100,6 +101,7 @@ model recurring_run {
   recurring_rule recurring_rule @relation(fields: [recurringRuleId], references: [id], onDelete: Cascade)
 
   @@unique([recurringRuleId, executionDate])
+  @@map("recurring_run")
 }
 
 model subscription {
