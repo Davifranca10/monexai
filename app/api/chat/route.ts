@@ -23,7 +23,7 @@ const openai = new OpenAI({
 
 // ✅ FUNÇÃO: Carregar contexto financeiro (OTIMIZADO)
 async function loadUserFinancialContext(userId: string) {
-  const profile = await prisma.user_profile.findUnique({
+  const profile = await prisma.userProfile.findUnique({
     where: { userId },
     select: { mode: true },
   });
@@ -155,7 +155,7 @@ function calculateSimilarity(str1: string, str2: string): number {
 }
 
 async function checkForSpam(userId: string, currentMessage: string): Promise<boolean> {
-  const recentMessages = await prisma.chat_message.findMany({
+  const recentMessages = await prisma.chatMessage.findMany({
     where: {
       userId,
       role: 'user',
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let usage = await prisma.chat_usage.findUnique({
+    let usage = await prisma.chatUsage.findUnique({
       where: {
         userId_date: {
           userId: session.user.id,
@@ -329,7 +329,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!usage) {
-      usage = await prisma.chat_usage.create({
+      usage = await prisma.chatUsage.create({
         data: {
           userId: session.user.id,
           date: today,
@@ -348,14 +348,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Incrementar contador
-    await prisma.chat_usage.update({
+    await prisma.chatUsage.update({
       where: { id: usage.id },
       data: { questionCount: usage.questionCount + 1 },
     });
 
     const userContext = await loadUserFinancialContext(session.user.id);
 
-    const previousMessages = await prisma.chat_message.findMany({
+    const previousMessages = await prisma.chatMessage.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
       take: MAX_MESSAGES_HISTORY - 1,
@@ -393,7 +393,7 @@ INSTRUÇÕES:
       { role: 'user', content: message },
     ];
 
-    await prisma.chat_message.create({
+    await prisma.chatMessage.create({
       data: {
         userId: session.user.id,
         role: 'user',
@@ -402,19 +402,19 @@ INSTRUÇÕES:
     });
 
     // Limpar histórico
-    const totalMessages = await prisma.chat_message.count({
+    const totalMessages = await prisma.chatMessage.count({
       where: { userId: session.user.id },
     });
 
     if (totalMessages > MAX_MESSAGES_HISTORY) {
       const messagesToDelete = totalMessages - MAX_MESSAGES_HISTORY;
-      const oldestMessages = await prisma.chat_message.findMany({
+      const oldestMessages = await prisma.chatMessage.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'asc' },
         take: messagesToDelete,
       });
 
-      await prisma.chat_message.deleteMany({
+      await prisma.chatMessage.deleteMany({
         where: { id: { in: oldestMessages.map((msg: any) => msg.id) } },
       });
     }
@@ -454,7 +454,7 @@ INSTRUÇÕES:
             }
           }
 
-          await prisma.chat_message.create({
+          await prisma.chatMessage.create({
             data: {
               userId: session.user.id,
               role: 'assistant',
@@ -462,7 +462,7 @@ INSTRUÇÕES:
             },
           });
 
-          const updatedUsage = await prisma.chat_usage.findUnique({
+          const updatedUsage = await prisma.chatUsage.findUnique({
             where: {
               userId_date: {
                 userId: session.user.id,
