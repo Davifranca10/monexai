@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     if (hide) {
       // Hide template
-      await prisma.hiddenTemplate.upsert({
+      await prisma.hidden_template.upsert({
         where: {
           userId_templateId: {
             userId: session.user.id,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // Show template
-      await prisma.hiddenTemplate.deleteMany({
+      await prisma.hidden_template.deleteMany({
         where: {
           userId: session.user.id,
           templateId,

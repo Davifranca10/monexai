@@ -20,7 +20,7 @@ export async function PATCH(
     const body = await request.json();
 
     
-    const rule = await prisma.recurringRule.findFirst({
+    const rule = await prisma.recurring_rule.findFirst({
       where: { id, userId: session.user.id },
     });
 
@@ -28,7 +28,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Recorrência não encontrada' }, { status: 404 });
     }
 
-    const updated = await prisma.recurringRule.update({
+    const updated = await prisma.recurring_rule.update({
       where: { id },
       data: body,
     });
@@ -53,7 +53,7 @@ export async function DELETE(
     const { id } = await params;  // ← MUDANÇA AQUI
 
     // Verify ownership
-    const rule = await prisma.recurringRule.findFirst({
+    const rule = await prisma.recurring_rule.findFirst({
       where: { id, userId: session.user.id },
     });
 
@@ -61,7 +61,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Recorrência não encontrada' }, { status: 404 });
     }
 
-    await prisma.recurringRule.delete({
+    await prisma.recurring_rule.delete({
       where: { id },
     });
 

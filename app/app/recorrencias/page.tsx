@@ -15,7 +15,7 @@ export default async function RecorrenciasPage() {
   const [profile, subscription, rules, categories] = await Promise.all([
     prisma.userProfile.findUnique({ where: { userId } }),
     prisma.subscription.findUnique({ where: { userId } }),
-    prisma.recurringRule.findMany({
+    prisma.recurring_rule.findMany({
       where: { userId },
       include: { category: true },
       orderBy: { createdAt: 'desc' },

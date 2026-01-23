@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const rules = await prisma.recurringRule.findMany({
+    const rules = await prisma.recurring_rule.findMany({
       where: { userId: session.user.id },
       include: { category: true },
       orderBy: { createdAt: 'desc' },
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const isPro = subscription?.status === 'ACTIVE';
 
     if (!isPro) {
-      const count = await prisma.recurringRule.count({
+      const count = await prisma.recurring_rule.count({
         where: { userId: session.user.id },
       });
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const rule = await prisma.recurringRule.create({
+    const rule = await prisma.recurring_rule.create({
       data: {
         userId: session.user.id,
         description,

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'desc' },
     });
 
-    const recurringRules = await prisma.recurringRule.findMany({
+    const recurringRules = await prisma.recurring_rule.findMany({
       where: { userId },
       include: { category: true },
     });
