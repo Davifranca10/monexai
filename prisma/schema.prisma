@@ -10,13 +10,14 @@ datasource db {
 }
 
 model category {
-  id             String           @id
-  name           String
-  mode           UserMode
-  type           TransactionType  @default(EXPENSE)
-  isSystem       Boolean          @default(true)
-  userId         String?
-  createdAt      DateTime         @default(now())
+  id        String          @id
+  name      String
+  mode      UserMode
+  type      TransactionType @default(EXPENSE)
+  isSystem  Boolean         @default(true)
+  userId    String?
+  createdAt DateTime        @default(now())
+
   recurring_rule recurring_rule[]
   template       template[]
   transaction    transaction[]
@@ -28,7 +29,8 @@ model chat_message {
   role      String
   content   String
   createdAt DateTime @default(now())
-  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -39,8 +41,9 @@ model chat_usage {
   date          DateTime @default(now()) @db.Date
   questionCount Int      @default(0)
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
-  users         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([userId, date])
@@ -51,7 +54,8 @@ model hidden_template {
   userId     String
   templateId String
   createdAt  DateTime @default(now())
-  users      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, templateId])
 }
@@ -72,22 +76,24 @@ model recurring_rule {
   endDate           DateTime?
   isActive          Boolean         @default(true)
   createdAt         DateTime        @default(now())
-  updatedAt         DateTime
-  category          category        @relation(fields: [categoryId], references: [id])
-  users             users           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recurring_run     recurring_run[]
-  transaction       transaction[]
+  updatedAt         DateTime        @updatedAt
+
+  category      category        @relation(fields: [categoryId], references: [id])
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurring_run recurring_run[]
+  transaction   transaction[]
 
   @@index([userId, isActive])
 }
 
 model recurring_run {
-  id              String         @id
+  id              String   @id
   recurringRuleId String
   executionDate   DateTime
   transactionId   String?
-  createdAt       DateTime       @default(now())
-  recurring_rule  recurring_rule @relation(fields: [recurringRuleId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  recurring_rule recurring_rule @relation(fields: [recurringRuleId], references: [id], onDelete: Cascade)
 
   @@unique([recurringRuleId, executionDate])
 }
@@ -102,8 +108,9 @@ model subscription {
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   createdAt            DateTime           @default(now())
-  updatedAt            DateTime
-  users                users              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model template {
@@ -117,8 +124,9 @@ model template {
   userId      String?
   amountCents Int?
   createdAt   DateTime        @default(now())
-  category    category        @relation(fields: [categoryId], references: [id])
-  users       users?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  category category @relation(fields: [categoryId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model transaction {
@@ -133,10 +141,11 @@ model transaction {
   installments    Int?            @default(1)
   recurringRuleId String?
   createdAt       DateTime        @default(now())
-  updatedAt       DateTime
-  category        category        @relation(fields: [categoryId], references: [id])
-  recurring_rule  recurring_rule? @relation(fields: [recurringRuleId], references: [id])
-  users           users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt       DateTime        @updatedAt
+
+  category       category        @relation(fields: [categoryId], references: [id])
+  recurring_rule recurring_rule? @relation(fields: [recurringRuleId], references: [id])
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
 }
@@ -147,17 +156,19 @@ model user_profile {
   mode       UserMode
   avatarPath String?
   createdAt  DateTime @default(now())
-  updatedAt  DateTime
-  users      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model users {
-  id              String            @id
-  email           String            @unique
-  name            String?
-  passwordHash    String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+model User {
+  id           String   @id
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   chat_message    chat_message[]
   chat_usage      chat_usage[]
   hidden_template hidden_template[]
@@ -167,6 +178,8 @@ model users {
   transaction     transaction[]
   user_profile    user_profile?
   spamBlock       UserSpamBlock?
+
+  @@map("users")
 }
 
 model UserSpamBlock {
@@ -177,7 +190,7 @@ model UserSpamBlock {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_spam_blocks")
