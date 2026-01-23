@@ -14,13 +14,13 @@ export default async function ConfiguracoesPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { profile: true },
+    include: { userProfile: true },
   });
 
   let avatarUrl: string | null = null;
-  if (user?.user_profile?.avatarPath) {
+  if (user?.userProfile?.avatarPath) {
     try {
-      avatarUrl = await getFileUrl(user.user_profile.avatarPath, true);
+      avatarUrl = await getFileUrl(user.userProfile.avatarPath, true);
     } catch (e) {
       console.error('Error getting avatar URL:', e);
     }
@@ -31,7 +31,7 @@ export default async function ConfiguracoesPage() {
       user={{
         name: user?.name || '',
         email: user?.email || '',
-        mode: user?.user_profile?.mode || 'PERSONAL',
+        mode: user?.userProfile?.mode || 'PERSONAL',
         createdAt: user?.createdAt?.toISOString() || '',
         avatarUrl,
       }}
