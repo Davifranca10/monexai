@@ -6,104 +6,78 @@ import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
 
-const DAILY_QUESTION_LIMIT = 50;
-const MAX_MESSAGES_HISTORY = 30;
+// ✅ CONFIGURAÇÕES DE SEGURANÇA
+const DAILY_QUESTION_LIMIT = 16; // Limite seguro para margem de R$ 5-9
+const MAX_MESSAGES_HISTORY = 15; // Histórico de conversa
+const MAX_INPUT_LENGTH = 400; // Máximo de caracteres por pergunta
+const MAX_TOKENS_OUTPUT = 600; // Respostas concisas
+const REQUEST_TIMEOUT_MS = 30000; // 30 segundos
+const SPAM_BLOCK_HOURS = 4; // Bloqueio por spam
+const MAX_SIMILAR_QUESTIONS = 3; // Máximo de perguntas similares
+const SIMILARITY_THRESHOLD = 0.7; // 70% de similaridade = spam
 
-// Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
-// Helper function to load user financial context
+// ✅ FUNÇÃO: Carregar contexto financeiro (OTIMIZADO)
 async function loadUserFinancialContext(userId: string) {
-  // Get user profile
-  const profile = await prisma.userProfile.findUnique({
+  const profile = await prisma.user_profile.findUnique({
     where: { userId },
     select: { mode: true },
   });
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true },
+    select: { name: true },
   });
 
-  // Get subscription status
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
   });
 
   const isPro = subscription?.status === 'ACTIVE';
-
-  // Calculate history limits based on plan
-  // Free: current month + 1 previous month (2 months total)
-  // Pro: current month + 5 previous months (6 months total)
   const now = new Date();
   const monthsAllowed = isPro ? 6 : 2;
   const historyStartDate = new Date(now.getFullYear(), now.getMonth() - (monthsAllowed - 1), 1);
 
-  // Get all transactions within allowed period
-  const allAllowedTransactions = await prisma.transaction.findMany({
+  // Buscar apenas últimas 100 transações (economiza tokens)
+  const allTransactions = await prisma.transaction.findMany({
     where: {
       userId,
       date: { gte: historyStartDate, lte: now },
     },
-    include: {
-      category: true,
-    },
+    include: { category: true },
     orderBy: { date: 'desc' },
+    take: 100,
   });
 
-  // Get current month transactions
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const currentMonthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
+  const currentMonthTransactions = allTransactions.filter((t: any) => {
     const tDate = new Date(t.date);
     return tDate >= startOfMonth && tDate <= endOfMonth;
   });
 
-  // Calculate current month summary
   const currentMonthIncome = currentMonthTransactions
     .filter((t: any) => t.type === 'INCOME')
     .reduce((sum: any, t: any) => sum + t.amountCents, 0);
 
   const currentMonthExpenses = currentMonthTransactions
     .filter((t: any) => t.type === 'EXPENSE')
-    .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
+    .reduce((sum: any, t: any) => sum + t.amountCents, 0);
 
-  const currentMonthBalance = currentMonthIncome - currentMonthExpenses;
-
-  // Calculate spending by category (current month)
   const expensesByCategory: Record<string, number> = {};
   currentMonthTransactions
-    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-    .forEach((t: any) => {  // ← MUDANÇA
+    .filter((t: any) => t.type === 'EXPENSE')
+    .forEach((t: any) => {
       const categoryName = t.category.name;
-      expensesByCategory[categoryName] =
-        (expensesByCategory[categoryName] || 0) + t.amountCents;
+      expensesByCategory[categoryName] = (expensesByCategory[categoryName] || 0) + t.amountCents;
     });
 
-  // Calculate income by category (current month)
-  const incomeByCategory: Record<string, number> = {};
-  currentMonthTransactions
-    .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
-    .forEach((t: any) => {  // ← MUDANÇA
-      const categoryName = t.category.name;
-      incomeByCategory[categoryName] =
-        (incomeByCategory[categoryName] || 0) + t.amountCents;
-    });
-
-  // Get top 5 expense categories (from all allowed period)
-  const allExpensesByCategory: Record<string, number> = {};
-  allAllowedTransactions
-    .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-    .forEach((t: any) => {  // ← MUDANÇA
-      const categoryName = t.category.name;
-      allExpensesByCategory[categoryName] =
-        (allExpensesByCategory[categoryName] || 0) + t.amountCents;
-    });
-
-  const topExpenseCategories = Object.entries(allExpensesByCategory)
+  const topExpenseCategories = Object.entries(expensesByCategory)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([category, amount]) => ({
@@ -111,29 +85,8 @@ async function loadUserFinancialContext(userId: string) {
       amount: (amount / 100).toFixed(2),
     }));
 
-  // Get active recurring rules
-  const recurringRules = await prisma.recurringRule.findMany({
-    where: {
-      userId,
-      isActive: true,
-    },
-    include: {
-      category: true,
-    },
-    take: 10,
-  });
-
-  // Format recurring rules
-  const formattedRecurrences = recurringRules.map((r: any) => ({  // ← MUDANÇA
-    description: r.description,
-    amount: (r.amountCents / 100).toFixed(2),
-    type: r.transactionType,
-    frequency: r.type,
-    category: r.category.name,
-  }));
-
-  // Get recent transactions (last 10 from allowed period)
-  const recentTransactions = allAllowedTransactions.slice(0, 10).map((t: any) => ({  // ← MUDANÇA
+  // Apenas últimas 5 transações para economizar tokens
+  const recentTransactions = allTransactions.slice(0, 5).map((t: any) => ({
     date: t.date.toLocaleDateString('pt-BR'),
     description: t.description,
     amount: (t.amountCents / 100).toFixed(2),
@@ -141,219 +94,136 @@ async function loadUserFinancialContext(userId: string) {
     category: t.category.name,
   }));
 
-  // Calculate monthly comparison (current vs last month) - only if last month is within allowed period
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-  let lastMonthIncome = 0;
-  let lastMonthExpenses = 0;
-
-  // Only calculate if last month is within allowed period
-  if (lastMonth >= historyStartDate) {
-    const lastMonthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
-      const tDate = new Date(t.date);
-      return tDate >= lastMonth && tDate <= lastMonthEnd;
-    });
-
-    lastMonthIncome = lastMonthTransactions
-      .filter((t: any) => t.type === 'INCOME')
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
-
-    lastMonthExpenses = lastMonthTransactions
-      .filter((t: any) => t.type === 'EXPENSE')
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
-  }
-
-  // Calculate monthly breakdown for historical analysis with detailed category data
-  const monthlyBreakdown: Array<{
-    month: string;
-    monthKey: string;
-    income: string;
-    expenses: string;
-    balance: string;
-    transactionCount: number;
-    expensesByCategory: Array<{ category: string; amount: string; count: number }>;
-    incomeByCategory: Array<{ category: string; amount: string; count: number }>;
-    topExpenseCategory: { category: string; amount: string } | null;
-  }> = [];
-
-  for (let i = 0; i < monthsAllowed; i++) {
-    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
-
-    const monthTransactions = allAllowedTransactions.filter((t: any) => {  // ← MUDANÇA
-      const tDate = new Date(t.date);
-      return tDate >= monthStart && tDate <= monthEnd;
-    });
-
-    const monthIncome = monthTransactions
-      .filter((t: any) => t.type === 'INCOME')
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
-
-    const monthExpenses = monthTransactions
-      .filter((t: any) => t.type === 'EXPENSE')
-      .reduce((sum: any, t: any) => sum + t.amountCents, 0);  // ← adicionar : any no sum
-
-    // Calculate expenses by category for this month
-    const monthExpensesByCategory: Record<string, { amount: number; count: number }> = {};
-    monthTransactions
-      .filter((t: any) => t.type === 'EXPENSE')  // ← MUDANÇA
-      .forEach((t: any) => {  // ← MUDANÇA
-        const categoryName = t.category.name;
-        if (!monthExpensesByCategory[categoryName]) {
-          monthExpensesByCategory[categoryName] = { amount: 0, count: 0 };
-        }
-        monthExpensesByCategory[categoryName].amount += t.amountCents;
-        monthExpensesByCategory[categoryName].count += 1;
-      });
-
-    // Calculate income by category for this month
-    const monthIncomeByCategory: Record<string, { amount: number; count: number }> = {};
-    monthTransactions
-      .filter((t: any) => t.type === 'INCOME')  // ← MUDANÇA
-      .forEach((t: any) => {  // ← MUDANÇA
-        const categoryName = t.category.name;
-        if (!monthIncomeByCategory[categoryName]) {
-          monthIncomeByCategory[categoryName] = { amount: 0, count: 0 };
-        }
-        monthIncomeByCategory[categoryName].amount += t.amountCents;
-        monthIncomeByCategory[categoryName].count += 1;
-      });
-
-    // Sort and format expense categories
-    const sortedExpenseCategories = Object.entries(monthExpensesByCategory)
-      .sort(([, a], [, b]) => b.amount - a.amount)
-      .map(([category, data]) => ({
-        category,
-        amount: (data.amount / 100).toFixed(2),
-        count: data.count,
-      }));
-
-    // Sort and format income categories
-    const sortedIncomeCategories = Object.entries(monthIncomeByCategory)
-      .sort(([, a], [, b]) => b.amount - a.amount)
-      .map(([category, data]) => ({
-        category,
-        amount: (data.amount / 100).toFixed(2),
-        count: data.count,
-      }));
-
-    // Get top expense category for this month
-    const topExpenseCategory = sortedExpenseCategories.length > 0
-      ? { category: sortedExpenseCategories[0].category, amount: sortedExpenseCategories[0].amount }
-      : null;
-
-    monthlyBreakdown.push({
-      month: monthDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
-      monthKey: `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`,
-      income: (monthIncome / 100).toFixed(2),
-      expenses: (monthExpenses / 100).toFixed(2),
-      balance: ((monthIncome - monthExpenses) / 100).toFixed(2),
-      transactionCount: monthTransactions.length,
-      expensesByCategory: sortedExpenseCategories,
-      incomeByCategory: sortedIncomeCategories,
-      topExpenseCategory,
-    });
-  }
-
-  // Format period description
-  const periodStart = historyStartDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const periodEnd = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
   return {
     userName: user?.name || 'Usuário',
     userMode: profile?.mode === 'PERSONAL' ? 'Pessoal' : 'Empresarial',
     isPro,
-    monthsAllowed,
-    periodDescription: `${periodStart} até ${periodEnd}`,
     currentMonth: {
-      name: new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      name: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
       income: (currentMonthIncome / 100).toFixed(2),
       expenses: (currentMonthExpenses / 100).toFixed(2),
-      balance: (currentMonthBalance / 100).toFixed(2),
+      balance: ((currentMonthIncome - currentMonthExpenses) / 100).toFixed(2),
       transactionCount: currentMonthTransactions.length,
     },
-    lastMonth: {
-      income: (lastMonthIncome / 100).toFixed(2),
-      expenses: (lastMonthExpenses / 100).toFixed(2),
-      available: lastMonth >= historyStartDate,
-    },
-    monthlyBreakdown,
     topExpenseCategories,
-    incomeByCategory: Object.entries(incomeByCategory).map(([category, amount]) => ({
-      category,
-      amount: (amount / 100).toFixed(2),
-    })),
     recentTransactions,
-    recurringRules: formattedRecurrences,
-    hasData: allAllowedTransactions.length > 0,
-    totalTransactions: allAllowedTransactions.length,
+    hasData: allTransactions.length > 0,
   };
 }
 
-// Helper function to validate if question is relevant
-function isQuestionRelevant(message: string): boolean {
-  // Convert to lowercase for easier matching
-  const lowerMessage = message.toLowerCase();
+// ✅ PROTEÇÃO: Validação com IA (GPT-4o-mini para economizar)
+async function validateQuestionWithAI(message: string): Promise<boolean> {
+  try {
+    const validationResponse = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'Você é um validador. Responda APENAS "SIM" ou "NÃO".',
+        },
+        {
+          role: 'user',
+          content: `A pergunta abaixo está relacionada a finanças pessoais, gastos, receitas, despesas, categorias financeiras ou gestão de dinheiro?\n\nPergunta: "${message}"\n\nResposta:`,
+        },
+      ],
+      temperature: 0,
+      max_tokens: 5,
+    });
 
-  // Keywords related to financial management
-  const relevantKeywords = [
-    'gasto',
-    'despesa',
-    'receita',
-    'saldo',
-    'categoria',
-    'lançamento',
-    'transação',
-    'mês',
-    'meses',
-    'financeiro',
-    'dinheiro',
-    'pagar',
-    'receber',
-    'economizar',
-    'poupar',
-    'investir',
-    'orçamento',
-    'conta',
-    'quanto',
-    'onde',
-    'como',
-    'reduzir',
-    'aumentar',
-    'dica',
-    'conselho',
-    'ajuda',
-    'dashboard',
-    'relatório',
-    'análise',
-    'resumo',
-    'total',
-    'valor',
-    'recorrente',
-    'recorrência',
-    'parcelado',
-    'parcela',
-    'alimentação',
-    'transporte',
-    'saúde',
-    'educação',
-    'lazer',
-    'moradia',
-    'salário',
-    'renda',
-  ];
+    const answer = validationResponse.choices[0]?.message?.content?.trim().toUpperCase();
+    return answer === 'SIM';
+  } catch (error) {
+    console.error('Erro na validação IA:', error);
+    return true; // Fail-open: se der erro, permite
+  }
+}
 
-  // Check if message contains any relevant keyword
-  const hasRelevantKeyword = relevantKeywords.some((keyword) =>
-    lowerMessage.includes(keyword)
-  );
+// ✅ PROTEÇÃO: Detectar spam (perguntas repetidas)
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
 
-  return hasRelevantKeyword;
+  if (s1 === s2) return 1.0;
+
+  const words1 = s1.split(/\s+/);
+  const words2 = s2.split(/\s+/);
+
+  const commonWords = words1.filter((word) => words2.includes(word));
+  const similarity = (2 * commonWords.length) / (words1.length + words2.length);
+
+  return similarity;
+}
+
+async function checkForSpam(userId: string, currentMessage: string): Promise<boolean> {
+  const recentMessages = await prisma.chat_message.findMany({
+    where: {
+      userId,
+      role: 'user',
+      createdAt: {
+        gte: new Date(Date.now() - 60 * 60 * 1000), // Última 1 hora
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  let similarCount = 0;
+
+  for (const msg of recentMessages) {
+    const similarity = calculateSimilarity(currentMessage, msg.content);
+    if (similarity >= SIMILARITY_THRESHOLD) {
+      similarCount++;
+    }
+  }
+
+  return similarCount >= MAX_SIMILAR_QUESTIONS;
+}
+
+// ✅ PROTEÇÃO: Verificar se está bloqueado por spam
+async function isUserBlocked(userId: string): Promise<{ blocked: boolean; remainingMinutes?: number }> {
+  const blockRecord = await prisma.userSpamBlock.findUnique({
+    where: { userId },
+  });
+
+  if (!blockRecord) return { blocked: false };
+
+  const now = new Date();
+  const blockExpiry = new Date(blockRecord.blockedUntil);
+
+  if (now < blockExpiry) {
+    const remainingMinutes = Math.ceil((blockExpiry.getTime() - now.getTime()) / (60 * 1000));
+    return { blocked: true, remainingMinutes };
+  }
+
+  // Desbloqueou, remover registro
+  await prisma.userSpamBlock.delete({
+    where: { userId },
+  });
+
+  return { blocked: false };
+}
+
+// ✅ PROTEÇÃO: Bloquear usuário por spam
+async function blockUserForSpam(userId: string): Promise<void> {
+  const blockedUntil = new Date(Date.now() + SPAM_BLOCK_HOURS * 60 * 60 * 1000);
+
+  await prisma.userSpamBlock.upsert({
+    where: { userId },
+    create: {
+      userId,
+      blockedUntil,
+      reason: 'Spam detectado (perguntas repetidas)',
+    },
+    update: {
+      blockedUntil,
+      reason: 'Spam detectado (perguntas repetidas)',
+    },
+  });
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     const session = await getServerSession(authOptions);
 
@@ -361,15 +231,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    // Check if OpenAI API key is configured
     if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your_openai_api_key_here') {
       return NextResponse.json(
-        { error: 'OpenAI API key não configurada. Por favor, configure a variável OPENAI_API_KEY no arquivo .env' },
+        { error: 'OpenAI API key não configurada.' },
         { status: 500 }
       );
     }
 
-    // Check subscription status
     const subscription = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
     });
@@ -386,18 +254,47 @@ export async function POST(request: NextRequest) {
     const { message } = await request.json();
 
     if (!message || typeof message !== 'string') {
+      return NextResponse.json({ error: 'Mensagem inválida' }, { status: 400 });
+    }
+
+    // ✅ PROTEÇÃO 1: Verificar bloqueio por spam
+    const blockStatus = await isUserBlocked(session.user.id);
+    if (blockStatus.blocked) {
       return NextResponse.json(
-        { error: 'Mensagem inválida' },
+        {
+          error: `Detectamos um padrão de uso suspeito. Por favor, aguarde ${blockStatus.remainingMinutes} minutos antes de tentar novamente.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // ✅ PROTEÇÃO 2: Limite de caracteres
+    if (message.length > MAX_INPUT_LENGTH) {
+      return NextResponse.json(
+        { error: `Mensagem muito longa. Por favor, seja mais conciso (máximo ${MAX_INPUT_LENGTH} caracteres).` },
         { status: 400 }
       );
     }
 
-    // Validate if question is relevant to financial context
-    if (!isQuestionRelevant(message)) {
-      // Return a polite refusal without using the API
+    // ✅ PROTEÇÃO 3: Detectar spam
+    const isSpam = await checkForSpam(session.user.id, message);
+    if (isSpam) {
+      await blockUserForSpam(session.user.id);
+      return NextResponse.json(
+        {
+          error: `Detectamos perguntas repetidas. Para garantir a qualidade do serviço, bloqueamos temporariamente seu acesso por ${SPAM_BLOCK_HOURS} horas. Por favor, evite repetir as mesmas perguntas.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    // ✅ PROTEÇÃO 4: Validação com IA
+    const isRelevant = await validateQuestionWithAI(message);
+
+    if (!isRelevant) {
       const encoder = new TextEncoder();
       const refusalMessage =
-        'Posso te ajudar apenas com informações relacionadas aos seus dados financeiros e ao funcionamento do sistema MonexAI. Por favor, faça uma pergunta sobre seus gastos, receitas, categorias ou gestão financeira.';
+        'Posso te ajudar apenas com informações relacionadas aos seus dados financeiros. Por favor, faça uma pergunta sobre seus gastos, receitas, categorias ou gestão financeira.';
 
       const readableStream = new ReadableStream({
         start(controller) {
@@ -418,11 +315,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check daily limit
+    // ✅ PROTEÇÃO 5: Limite diário (mensagem de spam em vez de limite)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let usage = await prisma.chatUsage.findUnique({
+    let usage = await prisma.chat_usage.findUnique({
       where: {
         userId_date: {
           userId: session.user.id,
@@ -432,7 +329,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!usage) {
-      usage = await prisma.chatUsage.create({
+      usage = await prisma.chat_usage.create({
         data: {
           userId: session.user.id,
           date: today,
@@ -444,153 +341,59 @@ export async function POST(request: NextRequest) {
     if (usage.questionCount >= DAILY_QUESTION_LIMIT) {
       return NextResponse.json(
         {
-          error:
-            'Por motivos de segurança e prevenção de spam, o limite diário de perguntas foi atingido. Tente novamente amanhã.',
+          error: 'Detectamos um uso muito elevado do chat. Por segurança e para prevenir spam, pedimos que retorne amanhã. Obrigado pela compreensão!',
         },
         { status: 429 }
       );
     }
 
-    // Increment usage count
-    await prisma.chatUsage.update({
+    // Incrementar contador
+    await prisma.chat_usage.update({
       where: { id: usage.id },
       data: { questionCount: usage.questionCount + 1 },
     });
 
-    // Load user's financial context
     const userContext = await loadUserFinancialContext(session.user.id);
 
-    // Get last 30 messages for context
-    const previousMessages = await prisma.chatMessage.findMany({
+    const previousMessages = await prisma.chat_message.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
-      take: 29, // Get 29 previous messages + current = 30
+      take: MAX_MESSAGES_HISTORY - 1,
     });
 
-    // Reverse to chronological order
     previousMessages.reverse();
 
-    // Build detailed system prompt with user data
-    const systemPrompt = `Você é o Assistente Financeiro Pessoal do MonexAI.
+    // ✅ System prompt otimizado
+    const systemPrompt = `Você é o Assistente Financeiro do MonexAI para ${userContext.userName} (${userContext.userMode}).
 
-**REGRAS CRÍTICAS (OBRIGATÓRIAS):**
-1. Você DEVE responder APENAS com base nos dados fornecidos abaixo.
-2. NUNCA invente ou assuma informações que não estão nos dados.
-3. Se os dados não forem suficientes para responder, diga isso claramente.
-4. NÃO responda perguntas genéricas, curiosidades ou temas não relacionados às finanças do usuário.
-5. Se a pergunta não puder ser respondida com os dados disponíveis, informe: "Não tenho informações suficientes nos seus dados para responder isso."
-6. Seja objetivo, claro e personalizado.
-7. Use os dados reais para criar respostas relevantes e úteis.
-8. RESPEITE RIGOROSAMENTE o período de dados disponível. Não faça inferências sobre períodos fora do alcance.
-
-**DADOS DO USUÁRIO:**
-Nome: ${userContext.userName}
-Modo: ${userContext.userMode}
-Plano: ${userContext.isPro ? 'Pro (acesso a 6 meses de histórico)' : 'Freemium (acesso limitado a 2 meses)'}
-
-**PERÍODO DE DADOS DISPONÍVEL:**
-${userContext.periodDescription}
-Total de ${userContext.monthsAllowed} ${userContext.monthsAllowed === 1 ? 'mês' : 'meses'} de histórico
-${userContext.totalTransactions} transações no período
-
-**IMPORTANTE:** ${userContext.isPro
-        ? 'Como usuário Pro, você tem acesso aos últimos 6 meses de dados detalhados.'
-        : 'Como usuário Freemium, você tem acesso apenas ao mês atual e ao mês anterior. Para análises de períodos mais longos, sugira o upgrade para o plano Pro.'
-      }
-
-**MÊS ATUAL (${userContext.currentMonth.name}):**
+DADOS FINANCEIROS (Mês: ${userContext.currentMonth.name}):
 - Receitas: R$ ${userContext.currentMonth.income}
 - Despesas: R$ ${userContext.currentMonth.expenses}
 - Saldo: R$ ${userContext.currentMonth.balance}
-- Total de lançamentos: ${userContext.currentMonth.transactionCount}
+- Transações: ${userContext.currentMonth.transactionCount}
 
-**MÊS ANTERIOR:**
-${userContext.lastMonth.available
-        ? `- Receitas: R$ ${userContext.lastMonth.income}
-- Despesas: R$ ${userContext.lastMonth.expenses}`
-        : '- Dados do mês anterior não disponíveis neste período'
-      }
+TOP 5 CATEGORIAS DE DESPESAS:
+${userContext.topExpenseCategories.map((c, i) => `${i + 1}. ${c.category}: R$ ${c.amount}`).join('\n')}
 
-**EVOLUÇÃO MENSAL DETALHADA:**
-${userContext.monthlyBreakdown.map((m) => `
-📅 ${m.month} (${m.transactionCount} lançamentos):
-  💰 Receitas: R$ ${m.income}
-  💸 Despesas: R$ ${m.expenses}
-  📊 Saldo: R$ ${m.balance}
-  
-  ${m.topExpenseCategory ? `🔝 Maior gasto: ${m.topExpenseCategory.category} (R$ ${m.topExpenseCategory.amount})` : ''}
-  
-  📁 Despesas por categoria:
-  ${m.expensesByCategory.length > 0
-          ? m.expensesByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
-          : '    Nenhuma despesa registrada'
-        }
-  
-  💵 Receitas por categoria:
-  ${m.incomeByCategory.length > 0
-          ? m.incomeByCategory.map((cat, idx) => `    ${idx + 1}. ${cat.category}: R$ ${cat.amount} (${cat.count} lançamento${cat.count > 1 ? 's' : ''})`).join('\n  ')
-          : '    Nenhuma receita registrada'
-        }
-`).join('\n---\n')}
+ÚLTIMAS 5 TRANSAÇÕES:
+${userContext.recentTransactions.map((t: any) => `${t.date} | ${t.description} | R$ ${t.amount} | ${t.category}`).join('\n')}
 
-**TOP 5 CATEGORIAS DE DESPESAS (período completo):**
-${userContext.topExpenseCategories.length > 0
-        ? userContext.topExpenseCategories.map((cat, i) => `${i + 1}. ${cat.category}: R$ ${cat.amount}`).join('\n')
-        : 'Nenhuma despesa registrada no período.'
-      }
+INSTRUÇÕES:
+- Responda de forma objetiva (máximo 3 parágrafos)
+- Use APENAS os dados acima
+- Se não tiver informação suficiente, diga claramente
+- Seja amigável e prestativo`;
 
-**RECEITAS POR CATEGORIA (mês atual):**
-${userContext.incomeByCategory.length > 0
-        ? userContext.incomeByCategory.map((cat) => `- ${cat.category}: R$ ${cat.amount}`).join('\n')
-        : 'Nenhuma receita registrada no mês atual.'
-      }
+    const conversationHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+      ...previousMessages.slice(-8).map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      })),
+      { role: 'user', content: message },
+    ];
 
-**ÚLTIMAS TRANSAÇÕES:**
-${userContext.recentTransactions.length > 0
-        ? userContext.recentTransactions.map((t: any) => `- ${t.date} | ${t.description} | R$ ${t.amount} | ${t.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${t.category}`).join('\n')
-        : 'Nenhuma transação registrada no período.'
-      }
-
-**RECORRÊNCIAS ATIVAS:**
-${userContext.recurringRules.length > 0
-        ? userContext.recurringRules.map((r: any) => `- ${r.description} | R$ ${r.amount} | ${r.type === 'INCOME' ? 'Receita' : 'Despesa'} | ${r.frequency} | ${r.category}`).join('\n')
-        : 'Nenhuma recorrência ativa.'
-      }
-
-**INSTRUÇÕES FINAIS:**
-1. Use APENAS os dados fornecidos acima para responder.
-2. Se a pergunta não estiver relacionada aos dados ou ao sistema MonexAI, recuse educadamente.
-3. Quando analisar padrões ou tendências, mencione o período considerado (${userContext.periodDescription}).
-4. Se o usuário perguntar sobre períodos fora do alcance, informe claramente o limite do plano dele.
-5. ${!userContext.isPro ? 'Se uma análise mais completa exigir mais histórico, sugira o upgrade para Pro (acesso a 6 meses).' : ''}
-6. Sempre responda em português do Brasil, de forma amigável mas profissional.
-7. Seja específico ao comparar meses ou identificar tendências - sempre cite os valores reais dos dados.
-8. **IMPORTANTE:** Quando o usuário perguntar sobre categorias específicas ou "onde gastei mais", use os dados detalhados de "Despesas por categoria" e "Receitas por categoria" da seção "EVOLUÇÃO MENSAL DETALHADA". NUNCA diga que não tem informações suficientes se os dados estiverem disponíveis nos breakdowns mensais acima.
-9. **ANÁLISE POR MÊS:** Você tem acesso aos dados de CADA MÊS separadamente. Se o usuário perguntar sobre o "mês passado" ou qualquer mês específico, consulte o breakdown daquele mês e responda com base nas categorias detalhadas fornecidas.
-10. **COMPARAÇÕES:** Ao comparar meses, sempre cite valores específicos de ambos os meses e identifique mudanças nas categorias.`;
-
-    // Build conversation history for OpenAI
-    const conversationHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[] =
-      [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        ...previousMessages.map(
-          (msg: any) =>  // ← MUDANÇA
-          ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          } as OpenAI.Chat.Completions.ChatCompletionMessageParam)
-        ),
-        {
-          role: 'user',
-          content: message,
-        },
-      ];
-
-    // Save user message to database
-    await prisma.chatMessage.create({
+    await prisma.chat_message.create({
       data: {
         userId: session.user.id,
         role: 'user',
@@ -598,53 +401,60 @@ ${userContext.recurringRules.length > 0
       },
     });
 
-    // Maintain only last 30 messages - delete oldest if exceeding
-    const totalMessages = await prisma.chatMessage.count({
+    // Limpar histórico
+    const totalMessages = await prisma.chat_message.count({
       where: { userId: session.user.id },
     });
 
     if (totalMessages > MAX_MESSAGES_HISTORY) {
       const messagesToDelete = totalMessages - MAX_MESSAGES_HISTORY;
-      const oldestMessages = await prisma.chatMessage.findMany({
+      const oldestMessages = await prisma.chat_message.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'asc' },
         take: messagesToDelete,
       });
 
-      await prisma.chatMessage.deleteMany({
-        where: {
-          id: { in: oldestMessages.map((msg: any) => msg.id) },  // ← MUDANÇA
-        },
+      await prisma.chat_message.deleteMany({
+        where: { id: { in: oldestMessages.map((msg: any) => msg.id) } },
       });
     }
 
-    // Stream response from OpenAI
+    // ✅ GPT-4O para respostas inteligentes
     const stream = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: conversationHistory,
       stream: true,
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: MAX_TOKENS_OUTPUT,
     });
 
-    // Create a ReadableStream for SSE
     const encoder = new TextEncoder();
     let assistantContent = '';
+    let tokenCount = 0;
 
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
+            if (Date.now() - startTime > REQUEST_TIMEOUT_MS) {
+              break;
+            }
+
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
               assistantContent += content;
+              tokenCount++;
+
+              if (tokenCount > MAX_TOKENS_OUTPUT) {
+                break;
+              }
+
               const data = JSON.stringify({ content });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
 
-          // Save assistant response to database
-          await prisma.chatMessage.create({
+          await prisma.chat_message.create({
             data: {
               userId: session.user.id,
               role: 'assistant',
@@ -652,8 +462,7 @@ ${userContext.recurringRules.length > 0
             },
           });
 
-          // Send final metadata
-          const updatedUsage = await prisma.chatUsage.findUnique({
+          const updatedUsage = await prisma.chat_usage.findUnique({
             where: {
               userId_date: {
                 userId: session.user.id,
@@ -664,8 +473,7 @@ ${userContext.recurringRules.length > 0
 
           const finalData = JSON.stringify({
             dailyCount: updatedUsage?.questionCount || 0,
-            limitReached:
-              (updatedUsage?.questionCount || 0) >= DAILY_QUESTION_LIMIT,
+            limitReached: (updatedUsage?.questionCount || 0) >= DAILY_QUESTION_LIMIT,
           });
           controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
@@ -687,24 +495,17 @@ ${userContext.recurringRules.length > 0
   } catch (error: any) {
     console.error('Erro no chat:', error);
 
-    // Check if it's an OpenAI API error
     if (error?.status === 401) {
-      return NextResponse.json(
-        { error: 'OpenAI API key inválida. Verifique a configuração.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Erro de autenticação com a API.' }, { status: 500 });
     }
 
     if (error?.status === 429) {
       return NextResponse.json(
-        { error: 'Limite de requisições da OpenAI atingido. Tente novamente em alguns instantes.' },
+        { error: 'Serviço temporariamente indisponível. Tente novamente em alguns instantes.' },
         { status: 429 }
       );
     }
 
-    return NextResponse.json(
-      { error: error?.message || 'Erro ao processar mensagem' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao processar sua mensagem. Tente novamente.' }, { status: 500 });
   }
 }

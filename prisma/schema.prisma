@@ -23,8 +23,8 @@ model category {
   transaction    transaction[]
 }
 
-model chat_message {
-  id        String   @id
+model ChatMessage {
+  id        String   @id @default(cuid())
   userId    String
   role      String
   content   String
@@ -33,10 +33,12 @@ model chat_message {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@map("chat_message")
 }
 
-model chat_usage {
-  id            String   @id
+
+model ChatUsage {
+  id            String   @id @default(cuid())
   userId        String
   date          DateTime @default(now()) @db.Date
   questionCount Int      @default(0)
@@ -47,7 +49,9 @@ model chat_usage {
 
   @@unique([userId, date])
   @@index([userId, date])
+  @@map("chat_usage")
 }
+
 
 model hidden_template {
   id         String   @id
@@ -150,8 +154,8 @@ model transaction {
   @@index([userId, date])
 }
 
-model user_profile {
-  id         String   @id
+model UserProfile {
+  id         String   @id @default(cuid())
   userId     String   @unique
   mode       UserMode
   avatarPath String?
@@ -159,7 +163,10 @@ model user_profile {
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_profile")
 }
+
 
 model User {
   id           String   @id
@@ -169,14 +176,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  chat_message    chat_message[]
-  chat_usage      chat_usage[]
-  hidden_template hidden_template[]
-  recurring_rule  recurring_rule[]
+  chatMessage     ChatMessage[]     
+  chatUsage       ChatUsage[]       
+  hiddenTemplate  hidden_template[]
+  recurringRule   recurring_rule[]
   subscription    subscription?
   template        template[]
   transaction     transaction[]
-  user_profile    user_profile?
+  userProfile     UserProfile?      
   spamBlock       UserSpamBlock?
 
   @@map("users")
