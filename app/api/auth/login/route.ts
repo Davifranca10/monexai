@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { loginRateLimit } from '@/lib/rateLimit'; // 👈 add this
 
 export const dynamic = 'force-dynamic';
 
@@ -16,11 +17,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 🌍 Get real client IP
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      'unknown';
+
+    // 🔒 Rate limit check (IP + Email combo)
+    const allowed = await loginRateLimit(`${ip}:${email}`);
+
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Tente novamente em breve.' },
+        { status: 429 }
+      );
+    }
+
+    // 🔍 Find user
     const user = await prisma.user.findUnique({
       where: { email },
       include: { profile: true, subscription: true },
     });
 
+    // ❌ Do NOT reveal if email exists
     if (!user) {
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
@@ -29,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
+
     if (!isValid) {
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
@@ -36,6 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Success
     return NextResponse.json({
       success: true,
       user: {
