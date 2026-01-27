@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { Toaster } from 'sonner';
+// ❌ REMOVIDO: import { ChatWidget } from '@/components/chat-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,6 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-// Tratamento seguro da URL base
 const getMetadataBase = () => {
   const url = process.env.NEXTAUTH_URL || 'https://monexai-production.up.railway.app';
   try {
@@ -41,20 +41,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" />
-      </head>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
+          {/* ❌ REMOVIDO: <ChatWidget /> */}
         </Providers>
       </body>
     </html>

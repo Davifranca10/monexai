@@ -14,9 +14,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return <div style={{ visibility: 'hidden' }}>{children}</div>;
   }
 
-  // TEMPORARIAMENTE SEM SESSION PROVIDER PARA TESTAR
-  return <>{children}</>;
-  
-  // Depois que funcionar, volte para:
-  // return <SessionProvider>{children}</SessionProvider>;
+  // ✅ CORRIGIDO - SessionProvider ATIVO
+  return <SessionProvider>{children}</SessionProvider>;
 }

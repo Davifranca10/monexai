@@ -159,6 +159,7 @@ async function main() {
     where: { email: 'teste@monexai.com' },
     update: {},
     create: {
+      id: 'test-user-id',
       email: 'teste@monexai.com',
       name: 'Usuário Teste',
       passwordHash,

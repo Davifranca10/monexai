@@ -31,7 +31,7 @@ export default async function DashboardPage() {
       include: { category: true },
       orderBy: { date: 'desc' },
     }),
-    prisma.recurringRule.count({
+    prisma.recurring_rule.count({
       where: { userId, isActive: true },
     }),
     prisma.subscription.findUnique({

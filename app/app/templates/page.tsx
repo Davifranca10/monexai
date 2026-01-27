@@ -25,7 +25,7 @@ export default async function TemplatesPage() {
     prisma.category.findMany({
       where: { mode: 'PERSONAL' },
     }),
-    prisma.hiddenTemplate.findMany({
+    prisma.hidden_template.findMany({
       where: { userId },
       select: { templateId: true },
     }),

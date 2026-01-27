@@ -18,10 +18,11 @@ export async function GET(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        profile: true,
+        userProfile: true,
         subscription: true,
       },
     });
+
 
     const transactions = await prisma.transaction.findMany({
       where: { userId },
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       orderBy: { date: 'desc' },
     });
 
-    const recurringRules = await prisma.recurringRule.findMany({
+    const recurringRules = await prisma.recurring_rule.findMany({
       where: { userId },
       include: { category: true },
     });
@@ -44,14 +45,14 @@ export async function GET(request: NextRequest) {
       user: {
         email: user?.email,
         name: user?.name,
-        mode: user?.profile?.mode,
+        mode: user?.userProfile?.mode,
         createdAt: user?.createdAt,
       },
       subscription: user?.subscription ? {
         status: user.subscription.status,
         currentPeriodEnd: user.subscription.currentPeriodEnd,
       } : null,
-transactions: transactions.map((t: any) => ({
+      transactions: transactions.map((t: any) => ({
         description: t.description,
         type: t.type,
         amount: t.amountCents / 100,
