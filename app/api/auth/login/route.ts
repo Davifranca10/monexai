@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
-import { loginRateLimit } from '@/lib/rateLimit'; // 👈 add this
+import { rateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
       'unknown';
 
     // 🔒 Rate limit check (IP + Email combo)
-    const allowed = await loginRateLimit(`${ip}:${email}`);
+    const emailKey = email.toLowerCase();
+    const ipKey = ip;
 
-    if (!allowed) {
-      return NextResponse.json(
-        { error: 'Muitas tentativas. Tente novamente em breve.' },
-        { status: 429 }
-      );
+    // 1️⃣ Per-IP flood protection
+    const ipAllowed = await rateLimit(`login:ip:${ipKey}`, 100, 60);
+    if (!ipAllowed) {
+      return NextResponse.json({ error: 'Muitas tentativas.' }, { status: 429 });
     }
 
     // 🔍 Find user

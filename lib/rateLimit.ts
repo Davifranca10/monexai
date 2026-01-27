@@ -1,14 +1,23 @@
 // lib/rateLimit.ts
 import { redis } from "./redis";
 
-export async function loginRateLimit(identifier: string) {
-  const key = `login:${identifier}`;
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number
+) {
+  const tx = redis.multi();
 
-  const attempts = await redis.incr(key);
+  tx.incr(key);
+  tx.ttl(key);
 
-  if (attempts === 1) {
-    await redis.expire(key, 60); // 1 minute window
+  const results = await tx.exec();
+  const count = results?.[0] as number;
+  const ttl = results?.[1] as number;
+
+  if (ttl === -1) {
+    await redis.expire(key, windowSeconds);
   }
 
-  return attempts <= 5;
+  return count <= limit;
 }
