@@ -48,24 +48,18 @@ export async function POST(request: NextRequest) {
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
 
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Credenciais inválidas' },
-        { status: 401 }
-      );
-    }
+if (!isValid) {
+  const failAllowed = await rateLimit(`login:fail:${emailKey}`, 5, 300);
 
-    // ✅ Success
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        mode: user.profile?.mode || null,
-        isPro: user.subscription?.status === 'ACTIVE',
-      },
-    });
+  if (!failAllowed) {
+    return NextResponse.json(
+      { error: 'Muitas tentativas. Conta temporariamente bloqueada.' },
+      { status: 429 }
+    );
+  }
+
+  return NextResponse.json({ error: 'Credenciais inválidas' }, { status: 401 });
+}
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
