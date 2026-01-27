@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
 
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
-            include: { profile: true, subscription: true },
+            include: { userProfile: true, subscription: true },
           });
 
 
@@ -51,7 +51,7 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             email: user.email,
             name: user.name,
-            mode: user.profile?.mode ?? null,
+            mode: user.userProfile?.mode ?? null,
             isPro: user.subscription?.status === 'ACTIVE',
           };
         } catch (error) {
