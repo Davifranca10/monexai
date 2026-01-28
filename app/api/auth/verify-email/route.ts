@@ -10,13 +10,16 @@ export const dynamic = 'force-dynamic';
  * URL: /api/auth/verify-email?token=TOKEN
  */
 export async function GET(request: NextRequest) {
+  // Usar NEXTAUTH_URL para evitar redirecionamento para localhost em produção
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://monexai-production.up.railway.app';
+  
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
 
     if (!token) {
       // Redirecionar para login com erro
-      const redirectUrl = new URL('/login', request.url);
+      const redirectUrl = new URL('/login', baseUrl);
       redirectUrl.searchParams.set('error', 'token_invalido');
       return NextResponse.redirect(redirectUrl);
     }
@@ -28,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Verificar se token existe e não expirou
     if (!verificationToken) {
-      const redirectUrl = new URL('/login', request.url);
+      const redirectUrl = new URL('/login', baseUrl);
       redirectUrl.searchParams.set('error', 'token_invalido');
       return NextResponse.redirect(redirectUrl);
     }
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
         where: { token },
       });
       
-      const redirectUrl = new URL('/login', request.url);
+      const redirectUrl = new URL('/login', baseUrl);
       redirectUrl.searchParams.set('error', 'token_expirado');
       return NextResponse.redirect(redirectUrl);
     }
@@ -56,13 +59,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Redirecionar para login com sucesso
-    const redirectUrl = new URL('/login', request.url);
+    const redirectUrl = new URL('/login', baseUrl);
     redirectUrl.searchParams.set('success', 'email_verificado');
     return NextResponse.redirect(redirectUrl);
     
   } catch (error) {
     console.error('Verify email error:', error);
-    const redirectUrl = new URL('/login', request.url);
+    const redirectUrl = new URL('/login', baseUrl);
     redirectUrl.searchParams.set('error', 'erro_verificacao');
     return NextResponse.redirect(redirectUrl);
   }
