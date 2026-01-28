@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart,
@@ -17,7 +18,8 @@ interface MonthlyEvolutionChartProps {
   data: { month: string; monthValue: string; income: number; expenses: number }[];
 }
 
-export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartProps) {
+// React.memo para evitar re-renders desnecessários
+const MonthlyEvolutionChart = memo(function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartProps) {
   const router = useRouter();
 
   const handleBarClick = (data: any) => {
@@ -74,4 +76,6 @@ export default function MonthlyEvolutionChart({ data }: MonthlyEvolutionChartPro
       </BarChart>
     </ResponsiveContainer>
   );
-}
+});
+
+export default MonthlyEvolutionChart;

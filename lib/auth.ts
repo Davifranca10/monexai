@@ -34,7 +34,10 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-
+          // IMPORTANTE: Bloqueio de login para usuários não verificados
+           if (!user.emailVerified) {
+             throw new Error('Email não verificado. Por favor, confirme seu email antes de fazer login.');
+           }
 
           const isValid = await bcrypt.compare(
             credentials.password,

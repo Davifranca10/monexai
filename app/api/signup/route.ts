@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { signupLimiter, getClientIp } from '@/lib/rate-limiter';
+import { sendVerificationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         email,
         name: name || null,
         passwordHash,
+        emailVerified: null, // Usuário precisa verificar o email
         subscription: {
           create: {
             status: 'FREEMIUM',
@@ -66,7 +68,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, userId: user.id });
+    // TODO: Implementar envio de email de verificação
+    // Sugestão: Usar Resend (https://resend.com) ou SendGrid
+    // Criar token de verificação e enviar link para o email do usuário
+
+    const verificationToken = crypto.randomUUID();
+
+    // Salvar no banco
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token: verificationToken,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+      },
+    });
+
+    // Enviar email
+    await sendVerificationEmail(email, verificationToken);
+    
+    return NextResponse.json({
+      success: true,
+      userId: user.id,
+      message: 'Conta criada! Verifique seu email para ativar a conta (funcionalidade em implementação).'
+    });
   } catch (error) {
     console.error('Signup error:', error);
     return NextResponse.json(

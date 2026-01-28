@@ -88,6 +88,7 @@ model recurring_rule {
   transaction   transaction[]
 
   @@index([userId, isActive])
+  @@index([userId, transactionType, isActive])
 }
 
 model recurring_run {
@@ -153,6 +154,8 @@ model transaction {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  @@index([userId, type, date])
+  @@index([userId, categoryId])
 }
 
 model UserProfile {
@@ -170,12 +173,13 @@ model UserProfile {
 
 
 model User {
-  id           String   @id
-  email        String   @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  emailVerified DateTime? // Campo para verificação de email
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   chatMessage     ChatMessage[]     
   chatUsage       ChatUsage[]       
@@ -202,6 +206,15 @@ model UserSpamBlock {
 
   @@index([userId])
   @@map("user_spam_blocks")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 enum RecurrenceType {
