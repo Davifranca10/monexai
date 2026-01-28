@@ -6,7 +6,7 @@ export async function sendVerificationEmail(email: string, token: string) {
   const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}`;
   
   await resend.emails.send({
-    from: 'MonexAI <noreply@monexai.com>',
+    from: 'MonexAI <noreply@monexai-production.up.railway.app>',
     to: email,
     subject: 'Verifique seu email - MonexAI',
     html: `
