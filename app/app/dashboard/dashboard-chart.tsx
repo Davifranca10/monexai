@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 
@@ -9,7 +10,8 @@ interface ChartProps {
   data: { name: string; total: number }[];
 }
 
-export default function DashboardChart({ data }: ChartProps) {
+// React.memo para evitar re-renders desnecessários
+const DashboardChart = memo(function DashboardChart({ data }: ChartProps) {
   const chartData = data?.map((d) => ({
     name: d?.name || 'Outros',
     value: d?.total || 0,
@@ -49,4 +51,6 @@ export default function DashboardChart({ data }: ChartProps) {
       </ResponsiveContainer>
     </div>
   );
-}
+});
+
+export default DashboardChart;

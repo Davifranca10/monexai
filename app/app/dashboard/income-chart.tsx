@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { formatCurrency } from '@/lib/utils';
 
@@ -9,7 +10,8 @@ interface IncomeChartProps {
   data: { name: string; total: number }[];
 }
 
-export default function IncomeChart({ data }: IncomeChartProps) {
+// React.memo para evitar re-renders desnecessários
+const IncomeChart = memo(function IncomeChart({ data }: IncomeChartProps) {
   const chartData = data.map((item) => ({
     name: item.name,
     value: item.total,
@@ -45,4 +47,6 @@ export default function IncomeChart({ data }: IncomeChartProps) {
       </PieChart>
     </ResponsiveContainer>
   );
-}
+});
+
+export default IncomeChart;
