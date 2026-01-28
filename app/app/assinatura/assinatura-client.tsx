@@ -106,10 +106,11 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        toast.error('Erro ao abrir portal');
+        toast.error(data?.error || 'Erro ao abrir portal de assinatura');
       }
     } catch (error) {
-      toast.error('Erro ao processar');
+      console.error('Erro ao abrir portal:', error);
+      toast.error('Erro ao conectar com o sistema de pagamentos');
     } finally {
       setPortalLoading(false);
     }
@@ -184,7 +185,7 @@ export function AssinaturaClient({ subscription }: AssinaturaClientProps) {
             )}
           </div>
 
-          {isPro && subscription?.stripeCustomerId && (
+          {isPro && (
             <Button
               variant="outline"
               className="mt-4"
