@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.userId;
         const subscriptionId = session.subscription as string;
+        const customerId = session.customer as string; // ← ADICIONE ISSO
 
         if (userId && subscriptionId) {
           const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
             where: { userId },
             data: {
               status: 'ACTIVE',
+              stripeCustomerId: customerId, // ← ADICIONE ISSO
               stripeSubscriptionId: subscriptionId,
               stripePriceId: stripeSubscription.items?.data?.[0]?.price?.id,
               currentPeriodStart: subData?.current_period_start ? new Date(subData.current_period_start * 1000) : null,
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest) {
         }
         break;
       }
+
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest) {
 
         if (sub) {
           let status: 'ACTIVE' | 'CANCELED' | 'PAST_DUE' | 'FREEMIUM' = 'ACTIVE';
-          
+
           if (subscription?.status === 'canceled' || subscription?.status === 'unpaid') {
             status = 'CANCELED';
           } else if (subscription?.status === 'past_due') {
