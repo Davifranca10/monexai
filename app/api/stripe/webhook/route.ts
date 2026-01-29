@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.metadata?.userId;
         const subscriptionId = session.subscription as string;
-        const customerId = session.customer as string; // ← ADICIONE ISSO
+        const customerId = session.customer as string; 
 
         if (userId && subscriptionId) {
           const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
             where: { userId },
             data: {
               status: 'ACTIVE',
-              stripeCustomerId: customerId, // ← ADICIONE ISSO
+              stripeCustomerId: customerId, 
               stripeSubscriptionId: subscriptionId,
               stripePriceId: stripeSubscription.items?.data?.[0]?.price?.id,
               currentPeriodStart: subData?.current_period_start ? new Date(subData.current_period_start * 1000) : null,
@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
         }
         break;
       }
-
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as any;
