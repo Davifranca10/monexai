@@ -22,12 +22,12 @@ const nextConfig = {
           key: 'Content-Security-Policy', 
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https: blob:",
             "font-src 'self' data:",
-            "connect-src 'self' https://api.openai.com",
-            "frame-src 'self'",
+            "connect-src 'self' https://api.openai.com https://api.stripe.com",
+            "frame-src 'self' https://js.stripe.com",
           ].join('; ')
         },
       ],
