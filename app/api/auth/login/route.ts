@@ -5,6 +5,7 @@ import { rateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
+//rate limit here is not working
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
