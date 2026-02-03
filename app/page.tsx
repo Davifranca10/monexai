@@ -273,7 +273,7 @@ useEffect(() => {
 
       
       {/* cool looking stuff */}
-      <section className='w-full h-[180vh] overflow-hidden relative '>
+<section className="w-full h-[180vh] md:h-[200vh] overflow-hidden relative">
 
 
 <video
