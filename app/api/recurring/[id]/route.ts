@@ -19,7 +19,7 @@ export async function PATCH(
 
     const body = await request.json();
 
-    
+    // ✅ SECURITY: Verify ownership before updating
     const rule = await prisma.recurring_rule.findFirst({
       where: { id, userId: session.user.id },
     });
@@ -28,9 +28,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Recorrência não encontrada' }, { status: 404 });
     }
 
+    // ✅ SECURITY: Whitelist allowed fields to prevent mass assignment
+    const { description, amountCents, dayOfMonth, dayOfWeek, endDate, isActive } = body;
+
     const updated = await prisma.recurring_rule.update({
       where: { id },
-      data: body,
+      data: {
+        ...(description !== undefined && { description }),
+        ...(amountCents !== undefined && { amountCents }),
+        ...(dayOfMonth !== undefined && { dayOfMonth }),
+        ...(dayOfWeek !== undefined && { dayOfWeek }),
+        ...(endDate !== undefined && { endDate }),
+        ...(isActive !== undefined && { isActive }),
+      },
     });
 
     return NextResponse.json(updated);
