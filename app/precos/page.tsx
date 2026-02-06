@@ -18,7 +18,7 @@ const plans = [
     price: 'Grátis',
     description: 'Para começar a organizar suas finanças',
     features: [
-      { text: '50 lançamentos/mês', included: true },
+      { text: '12 lançamentos/mês', included: true },
       { text: 'Histórico de 2 meses', included: true },
       { text: '3 recorrências', included: true },
       { text: 'Templates padrão', included: true },

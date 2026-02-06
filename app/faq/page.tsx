@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     question: 'Qual a diferença entre Freemium e Pro?',
-    answer: 'O plano Freemium oferece até 50 lançamentos/mês, 3 meses de histórico e 3 recorrências. O Pro é ilimitado e inclui Chat com IA, templates personalizados e Central Educacional.',
+    answer: 'O plano Freemium oferece até 12 lançamentos/mês, 3 meses de histórico e 3 recorrências. O Pro é ilimitado e inclui Chat com IA, templates personalizados e Central Educacional.',
   },
   {
     question: 'O que é o Chat com IA?',
