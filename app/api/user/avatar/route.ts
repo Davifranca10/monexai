@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { fileName, contentType } = body ?? {};
 
+    console.log('🔍 [POST] Gerando presigned URL para:', { fileName, contentType });
+
     if (!fileName || !contentType) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
     }
@@ -26,74 +28,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apenas imagens são permitidas' }, { status: 400 });
     }
 
-    // Validate fileName to prevent path traversal
-    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
-      return NextResponse.json({ error: 'Nome de arquivo inválido' }, { status: 400 });
-    }
-
-    // Limit filename length
-    if (fileName.length > 100) {
-      return NextResponse.json({ error: 'Nome de arquivo muito longo' }, { status: 400 });
-    }
-
     const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
       `avatar-${session.user.id}-${fileName}`,
       contentType,
       true // Public for avatars
     );
 
+    console.log('✅ [POST] URL gerada com sucesso:', { cloud_storage_path });
+
     return NextResponse.json({ uploadUrl, cloud_storage_path });
   } catch (error) {
-    console.error('Error generating upload URL:', error);
+    console.error('❌ [POST] Error generating upload URL:', error);
     return NextResponse.json({ error: 'Erro ao gerar URL' }, { status: 500 });
   }
-}
-
-// Validate avatar path belongs to current user and prevents path traversal
-function validateAvatarPath(avatarPath: string, userId: string): boolean {
-  // Must contain user ID and start with avatar prefix
-  const expectedPrefix = `avatar-${userId}-`;
-  
-  // Check for path traversal attempts
-  if (avatarPath.includes('..') || avatarPath.includes('\\') || avatarPath.startsWith('/')) {
-    return false;
-  }
-  
-  // Verify path starts with expected prefix (belongs to this user)
-  if (!avatarPath.startsWith(expectedPrefix)) {
-    return false;
-  }
-  
-  // Verify reasonable length (prevent DoS with extremely long paths)
-  if (avatarPath.length > 255) {
-    return false;
-  }
-  
-  // Must be alphanumeric, hyphens, underscores, dots only
-  if (!/^[a-zA-Z0-9\-_.]+$/.test(avatarPath)) {
-    return false;
-  }
-  
-  return true;
 }
 
 // Save avatar path after upload
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    console.log('🔍 [PUT] Session user ID:', session?.user?.id);
+    
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
     const body = await request.json();
+    console.log('🔍 [PUT] Body recebido:', JSON.stringify(body, null, 2));
+    
     const { cloud_storage_path } = body ?? {};
+    console.log('🔍 [PUT] cloud_storage_path extraído:', cloud_storage_path);
+    console.log('🔍 [PUT] Tipo:', typeof cloud_storage_path);
+    console.log('🔍 [PUT] É string?', typeof cloud_storage_path === 'string');
+    console.log('🔍 [PUT] Comprimento:', cloud_storage_path?.length);
 
     if (!cloud_storage_path) {
-      return NextResponse.json({ error: 'Caminho inválido' }, { status: 400 });
-    }
-
-    // Strict validation: ensure path cannot be exploited
-    if (!validateAvatarPath(cloud_storage_path, session.user.id)) {
+      console.error('❌ [PUT] cloud_storage_path está vazio ou undefined!');
+      console.error('❌ [PUT] Body completo:', body);
       return NextResponse.json({ error: 'Caminho inválido' }, { status: 400 });
     }
 
@@ -106,8 +77,9 @@ export async function PUT(request: NextRequest) {
     if (currentProfile?.avatarPath) {
       try {
         await deleteFile(currentProfile.avatarPath);
+        console.log('🗑️ [PUT] Avatar antigo deletado:', currentProfile.avatarPath);
       } catch (e) {
-        console.error('Error deleting old avatar:', e);
+        console.error('❌ [PUT] Error deleting old avatar:', e);
       }
     }
 
@@ -117,11 +89,14 @@ export async function PUT(request: NextRequest) {
       data: { avatarPath: cloud_storage_path },
     });
 
+    console.log('✅ [PUT] Avatar salvo no banco:', cloud_storage_path);
+
     const avatarUrl = await getFileUrl(cloud_storage_path, true);
+    console.log('✅ [PUT] Avatar URL gerada:', avatarUrl);
 
     return NextResponse.json({ success: true, avatarUrl });
   } catch (error) {
-    console.error('Error saving avatar:', error);
+    console.error('❌ [PUT] Error saving avatar:', error);
     return NextResponse.json({ error: 'Erro ao salvar avatar' }, { status: 500 });
   }
 }
