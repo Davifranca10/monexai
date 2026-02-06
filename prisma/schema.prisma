@@ -162,7 +162,7 @@ model UserProfile {
   id         String   @id @default(cuid())
   userId     String   @unique
   mode       UserMode
-  avatarPath String?
+  avatarPath String?  @db.VarChar(255) // Max length constraint to prevent abuse
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
