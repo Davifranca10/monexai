@@ -24,9 +24,9 @@ const nextConfig = {
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https: blob:",
+            "img-src 'self' data: https: blob: https://*.s3.us-west-2.amazonaws.com https://*.s3.amazonaws.com",
             "font-src 'self' data:",
-            "connect-src 'self' https://api.openai.com https://api.stripe.com",
+            "connect-src 'self' https://api.openai.com https://api.stripe.com https://*.s3.us-west-2.amazonaws.com https://*.s3.amazonaws.com",
             "frame-src 'self' https://js.stripe.com",
           ].join('; ')
         },
