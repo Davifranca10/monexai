@@ -31,9 +31,9 @@ interface Message {
 }
 
 export function ChatWidget() {
-  const sessionData = useSession();
-  const session = sessionData?.data;
-  const status = sessionData?.status || 'loading';
+  const sessionResult = useSession();
+  const session = sessionResult?.data ?? null;  // ✅ Proteção completa
+  const status = sessionResult?.status || 'loading';
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -155,14 +155,14 @@ export function ChatWidget() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        
+
         if (res.status === 403) {
           setIsPro(false);
           toast.error('Este recurso é exclusivo para usuários Pro');
           setMessages((prev) => prev.filter((msg) => msg.id !== tempUserMsg.id));
           return;
         }
-        
+
         throw new Error(errorData.error || 'Erro ao enviar mensagem');
       }
 
@@ -257,7 +257,7 @@ export function ChatWidget() {
 
       {/* Pop-up Chat Widget - Fixo no canto inferior direito */}
       {isOpen && isAuthenticated && (
-        <div 
+        <div
           className="fixed bottom-5 right-5 z-[9999] 
                      w-[min(420px,calc(100vw-2.5rem))] 
                      h-[min(600px,calc(100vh-2.5rem))] 
@@ -265,11 +265,10 @@ export function ChatWidget() {
           style={{ position: 'fixed', maxHeight: '90vh' }}
         >
           {/* Header */}
-          <div className={`px-4 py-3 flex items-center justify-between ${
-            isPro 
-              ? 'bg-gradient-to-r from-green-700 to-green-600' 
+          <div className={`px-4 py-3 flex items-center justify-between ${isPro
+              ? 'bg-gradient-to-r from-green-700 to-green-600'
               : 'bg-gradient-to-r from-gray-600 to-gray-500'
-          } text-white`}>
+            } text-white`}>
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5" />
               <div>
@@ -297,7 +296,7 @@ export function ChatWidget() {
               >
                 <RefreshCw className={`h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} />
               </Button>
-              
+
               {isPro && messages.length > 0 && (
                 <Button
                   variant="ghost"
@@ -429,9 +428,8 @@ export function ChatWidget() {
                     {messages.map((msg) => (
                       <div
                         key={msg.id}
-                        className={`flex gap-2 ${
-                          msg.role === 'user' ? 'justify-end' : 'justify-start'
-                        }`}
+                        className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                          }`}
                       >
                         {msg.role === 'assistant' && (
                           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -439,11 +437,10 @@ export function ChatWidget() {
                           </div>
                         )}
                         <div
-                          className={`max-w-[75%] px-3 py-2 rounded-lg ${
-                            msg.role === 'user'
+                          className={`max-w-[75%] px-3 py-2 rounded-lg ${msg.role === 'user'
                               ? 'bg-green-700 text-white'
                               : 'bg-gray-100 text-gray-900'
-                          }`}
+                            }`}
                         >
                           <p className="text-sm whitespace-pre-wrap">
                             {msg.content}
