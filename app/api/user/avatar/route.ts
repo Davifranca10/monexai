@@ -26,16 +26,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Apenas imagens são permitidas' }, { status: 400 });
     }
 
-    // Validate fileName to prevent path traversal
-    if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
-      return NextResponse.json({ error: 'Nome de arquivo inválido' }, { status: 400 });
-    }
-
-    // Limit filename length
-    if (fileName.length > 100) {
-      return NextResponse.json({ error: 'Nome de arquivo muito longo' }, { status: 400 });
-    }
-
     const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
       `avatar-${session.user.id}-${fileName}`,
       contentType,
@@ -47,34 +37,6 @@ export async function POST(request: NextRequest) {
     console.error('Error generating upload URL:', error);
     return NextResponse.json({ error: 'Erro ao gerar URL' }, { status: 500 });
   }
-}
-
-// Validate avatar path belongs to current user and prevents path traversal
-function validateAvatarPath(avatarPath: string, userId: string): boolean {
-  // Must contain user ID and start with avatar prefix
-  const expectedPrefix = `avatar-${userId}-`;
-  
-  // Check for path traversal attempts
-  if (avatarPath.includes('..') || avatarPath.includes('\\') || avatarPath.startsWith('/')) {
-    return false;
-  }
-  
-  // Verify path starts with expected prefix (belongs to this user)
-  if (!avatarPath.startsWith(expectedPrefix)) {
-    return false;
-  }
-  
-  // Verify reasonable length (prevent DoS with extremely long paths)
-  if (avatarPath.length > 255) {
-    return false;
-  }
-  
-  // Must be alphanumeric, hyphens, underscores, dots only
-  if (!/^[a-zA-Z0-9\-_.]+$/.test(avatarPath)) {
-    return false;
-  }
-  
-  return true;
 }
 
 // Save avatar path after upload
@@ -89,11 +51,6 @@ export async function PUT(request: NextRequest) {
     const { cloud_storage_path } = body ?? {};
 
     if (!cloud_storage_path) {
-      return NextResponse.json({ error: 'Caminho inválido' }, { status: 400 });
-    }
-
-    // Strict validation: ensure path cannot be exploited
-    if (!validateAvatarPath(cloud_storage_path, session.user.id)) {
       return NextResponse.json({ error: 'Caminho inválido' }, { status: 400 });
     }
 
