@@ -44,11 +44,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        {/* Microsoft Clarity */}
+      <head>
+        {/* Microsoft Clarity - Movido para o HEAD */}
         <Script
           id="microsoft-clarity"
-          strategy="afterInteractive"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function(c,l,a,r,i,t,y){
@@ -59,7 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />
-        
+      </head>
+      <body className={inter.className} suppressHydrationWarning>
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
